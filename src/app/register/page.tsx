@@ -2,164 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, ArrowRight, Loader2, Lock, Mail, User, Video, ShieldAlert } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, Lock, Mail, User, Video, ShieldAlert, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [creatorType, setCreatorType] = useState("YouTuber");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const creatorTypes = [
-    "YouTuber",
-    "Instagram Creator",
-    "Podcaster",
-    "Educator",
-    "Business Creator",
-    "Other",
-  ];
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
-    setLoading(true);
-    const res = await register(name, email, password, creatorType);
-    setLoading(false);
-
-    if (!res.success) {
-      setError(res.error || "Registration failed");
-    }
-  };
-
+  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [creatorType, setCreatorType] = useState("YouTuber"); const [loading, setLoading] = useState(false); const [error, setError] = useState("");
+  const creatorTypes = ["YouTuber", "Instagram Creator", "Podcaster", "Educator", "Business Creator", "Other"];
+  const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); setError(""); if (password.length < 6) { setError("Password must be at least 6 characters"); return; } setLoading(true); const res = await register(name, email, password, creatorType); setLoading(false); if (!res.success) setError(res.error || "Registration failed"); };
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-[#07090e]">
-      <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 p-0.5 shadow-lg shadow-indigo-500/20">
-              <div className="flex h-full w-full items-center justify-center rounded-[10px] bg-[#07090e]">
-                <Sparkles className="h-5 w-5 text-cyan-300" />
-              </div>
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-white">
-              Creator<span className="text-indigo-400">AI</span>
-            </span>
-          </Link>
-          <h2 className="mt-4 text-xl font-bold text-white tracking-tight">Create your workspace</h2>
-          <p className="mt-1 text-xs text-slate-400">Join thousands of creators operating at 10x speed</p>
-        </div>
-
-        {/* Card */}
-        <div className="rounded-2xl border border-white/10 bg-[#0d121f]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          {error && (
-            <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">
-              <ShieldAlert className="h-4 w-4 shrink-0 text-red-400" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Full name</label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Maya Lin"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email address</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="maya@creatorai.dev"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Creator type</label>
-              <div className="relative">
-                <Video className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <select
-                  value={creatorType}
-                  onChange={(e) => setCreatorType(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#090d16] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                  {creatorTypes.map((t) => (
-                    <option key={t} value={t} className="bg-[#090d16] text-white">
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:opacity-95 transition disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Preparing Workspace...</span>
-                </>
-              ) : (
-                <>
-                  <span>Create Account & Setup Demo</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-slate-400">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-indigo-400 hover:text-indigo-300 transition">
-              Log in
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+    <div className="creator-auth relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6"><div className="creator-ambient" aria-hidden="true" /><div className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[36px] border border-white/80 bg-white/45 shadow-[0_35px_100px_rgba(20,20,20,.13)] backdrop-blur-2xl lg:grid-cols-[1fr_1.05fr]">
+      <div className="hidden bg-[#111214] p-10 text-white lg:flex lg:flex-col lg:justify-between"><div><Link href="/" className="flex items-center gap-2.5"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-black"><Sparkles className="h-5 w-5" /></div><span className="text-xl font-black">CreatorAI</span></Link><p className="mt-16 text-[10px] font-bold uppercase tracking-[0.22em] text-white/35">Start your workspace</p><h1 className="mt-4 text-5xl font-black leading-[.98] tracking-[-.045em]">Create once.<br /><span className="text-white/45">Go everywhere.</span></h1><p className="mt-6 max-w-sm text-sm leading-6 text-white/45">Set up your creator profile and keep ideas, scripts, projects and insights connected from day one.</p></div><div className="space-y-3 text-xs text-white/50">{['Personal creator workspace', 'AI-powered creation tools', 'Demo-ready from day one'].map((x) => <div key={x} className="flex items-center gap-2"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-black"><Check className="h-3 w-3" /></span>{x}</div>)}</div></div>
+      <div className="p-6 sm:p-10 lg:p-12"><div className="mb-8 lg:hidden"><Link href="/" className="inline-flex items-center gap-2.5"><div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#111214] text-white"><Sparkles className="h-4 w-4" /></div><span className="text-xl font-black">CreatorAI</span></Link></div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#77797c]">New creator</p><h2 className="mt-2 text-3xl font-black tracking-tight text-[#111214]">Build your workspace.</h2><p className="mt-2 text-sm text-[#77797c]">Tell us a little about how you create.</p>
+        {error && <div className="mt-6 flex items-center gap-2 rounded-2xl border border-red-900/10 bg-red-50 p-3 text-xs text-red-700"><ShieldAlert className="h-4 w-4 shrink-0" />{error}</div>}
+        <form onSubmit={handleSubmit} className="mt-7 space-y-4"><div><label className="mb-2 block text-xs font-bold text-[#45474b]">Full name</label><div className="relative"><User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b8c90]" /><input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Maya Lin" className="w-full py-3.5 pl-11 pr-4 text-sm" /></div></div><div><label className="mb-2 block text-xs font-bold text-[#45474b]">Email address</label><div className="relative"><Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b8c90]" /><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="maya@creatorai.dev" className="w-full py-3.5 pl-11 pr-4 text-sm" /></div></div><div><label className="mb-2 block text-xs font-bold text-[#45474b]">Password</label><div className="relative"><Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b8c90]" /><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimum 6 characters" className="w-full py-3.5 pl-11 pr-4 text-sm" /></div></div><div><label className="mb-2 block text-xs font-bold text-[#45474b]">Creator type</label><div className="relative"><Video className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b8c90]" /><select value={creatorType} onChange={(e) => setCreatorType(e.target.value)} className="w-full py-3.5 pl-11 pr-4 text-sm">{creatorTypes.map((t) => <option key={t} value={t}>{t}</option>)}</select></div></div><button type="submit" disabled={loading} className="creator-button mt-2 w-full py-3.5 text-sm">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Create workspace</span><ArrowRight className="h-4 w-4" /></>}</button></form>
+        <p className="mt-7 text-center text-xs text-[#77797c]">Already have an account? <Link href="/login" className="font-bold text-[#111214] underline underline-offset-4">Log in</Link></p>
+      </div></div></div>
   );
 }
