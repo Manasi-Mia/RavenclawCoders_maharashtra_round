@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Lightbulb, FileText, Wand2, Share2, FolderOpen } from "lucide-react";
+import { LayoutDashboard, Lightbulb, Scissors, Wand2, Share2, FolderOpen } from "lucide-react";
 
 const mobileItems = [
-  { name: "Home", href: "/dashboard", icon: LayoutDashboard }, { name: "Ideas", href: "/dashboard/ideas", icon: Lightbulb }, { name: "Scripts", href: "/dashboard/scripts", icon: FileText }, { name: "AI Studio", href: "/dashboard/ai-studio", icon: Wand2 }, { name: "Repurpose", href: "/dashboard/repurpose", icon: Share2 }, { name: "Projects", href: "/dashboard/projects", icon: FolderOpen },
+  { name: "Home", href: "/dashboard", icon: LayoutDashboard }, { name: "Ideas", href: "/dashboard/ideas", icon: Lightbulb }, { name: "Studio", href: "/dashboard/studio", icon: Scissors }, { name: "AI Studio", href: "/dashboard/ai-studio", icon: Wand2 }, { name: "Repurpose", href: "/dashboard/repurpose", icon: Share2 }, { name: "Projects", href: "/dashboard/projects", icon: FolderOpen },
 ];
 
 export function MobileNav() {

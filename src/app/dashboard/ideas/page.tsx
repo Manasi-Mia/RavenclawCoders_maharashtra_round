@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Lightbulb,
   Plus,
   Sparkles,
   Search,
-  Filter,
   Trash2,
   Edit2,
-  ArrowRight,
   Loader2,
   Check,
   FolderPlus,
@@ -18,7 +16,6 @@ import {
 } from "lucide-react";
 import { IIdea } from "@/models";
 import { Modal } from "@/components/ui/Modal";
-import { formatDate } from "@/lib/utils";
 
 export default function ContentIdeasPage() {
   const router = useRouter();
@@ -51,6 +48,18 @@ export default function ContentIdeasPage() {
   const [generating, setGenerating] = useState(false);
   const [generatedIdeas, setGeneratedIdeas] = useState<Array<Partial<IIdea>>>([]);
 
+  const resetForm = useCallback(() => {
+    setEditingId(null);
+    setFormTitle("");
+    setFormDescription("");
+    setFormTopic("");
+    setFormPlatform("YouTube");
+    setFormStatus("IDEA");
+    setFormPriority("MEDIUM");
+    setFormAudience("");
+    setFormContentType("Video");
+  }, []);
+
   const fetchIdeas = async () => {
     try {
       setLoading(true);
@@ -65,27 +74,36 @@ export default function ContentIdeasPage() {
   };
 
   useEffect(() => {
-    fetchIdeas();
-    if (searchParams.get("generate") === "true") {
-      setAiModalOpen(true);
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/ideas");
+        if (ignore) return;
+        if (res.ok) {
+          const d = await res.json();
+          setIdeas(d.ideas || []);
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
     }
-    if (searchParams.get("new") === "true") {
-      resetForm();
-      setEditModalOpen(true);
-    }
-  }, [searchParams]);
+    load();
 
-  const resetForm = () => {
-    setEditingId(null);
-    setFormTitle("");
-    setFormDescription("");
-    setFormTopic("");
-    setFormPlatform("YouTube");
-    setFormStatus("IDEA");
-    setFormPriority("MEDIUM");
-    setFormAudience("");
-    setFormContentType("Video");
-  };
+    const gen = searchParams.get("generate");
+    const isNew = searchParams.get("new");
+    if (gen === "true") {
+      setTimeout(() => setAiModalOpen(true), 0);
+    }
+    if (isNew === "true") {
+      setTimeout(() => {
+        resetForm();
+        setEditModalOpen(true);
+      }, 0);
+    }
+    return () => {
+      ignore = true;
+    };
+  }, [searchParams, resetForm]);
 
   const handleOpenEdit = (idea: IIdea) => {
     setEditingId(idea._id || null);

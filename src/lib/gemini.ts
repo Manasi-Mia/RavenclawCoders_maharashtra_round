@@ -22,6 +22,8 @@ export interface GenerateIdeasParams {
   targetAudience?: string;
   platform?: string;
   contentStyle?: string;
+  creatorType?: string;
+  specializations?: string[];
 }
 
 export interface GeneratedIdea {
@@ -38,6 +40,10 @@ export async function generateIdeas(params: GenerateIdeasParams): Promise<Genera
   const client = getGeminiClient();
   const prompt = `You are an elite YouTube & social media growth strategist.
 Generate 5 high-converting, viral-potential content ideas for a creator.
+
+Creator Profile:
+- Creator Persona: ${params.creatorType || "Digital Video Creator"}
+${params.specializations?.length ? `- Niches/Specializations: ${params.specializations.join(", ")}` : ""}
 
 Parameters:
 - Topic: ${params.topic}
@@ -61,7 +67,7 @@ Return ONLY a JSON array with objects in this exact shape:
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -126,14 +132,35 @@ Return ONLY a JSON array with objects in this exact shape:
   ];
 }
 
-// 2. GENERATE FULL SCRIPT & HOOKS
+// 2. GENERATE SCRIPT VARIANTS & 4 ANGLES
+export type ScriptAngle =
+  | "Story-driven"
+  | "Educational / how-to"
+  | "Bold / contrarian take"
+  | "Fast-paced listicle";
+
+export interface ScriptVariant {
+  angle: ScriptAngle;
+  title: string;
+  script: string;
+  hooks: string[];
+  titles: string[];
+  captions: string[];
+  hashtags: string[];
+  wordCount: number;
+  estimatedDuration: string;
+}
+
 export interface GenerateScriptParams {
   topic: string;
   targetAudience?: string;
   platform?: string;
   tone?: string;
-  duration?: string; // e.g. "5 minutes", "60 seconds"
-  contentType?: string; // e.g. "YouTube Video", "YouTube Short"
+  duration?: string;
+  contentType?: string;
+  creatorType?: string;
+  specializations?: string[];
+  singleVariantAngle?: ScriptAngle;
 }
 
 export interface GeneratedScriptResponse {
@@ -145,117 +172,337 @@ export interface GeneratedScriptResponse {
   hashtags: string[];
 }
 
-export async function generateScript(params: GenerateScriptParams): Promise<GeneratedScriptResponse> {
+export async function generateScriptVariants(
+  params: GenerateScriptParams
+): Promise<ScriptVariant[]> {
   const client = getGeminiClient();
-  const prompt = `You are an elite screenwriter and content creator specializing in high-retention video production.
-Create a complete, production-ready script for:
-- Topic: ${params.topic}
+  const creatorContext = `
+- Creator Persona: ${params.creatorType || "Digital Video Creator"}
+${params.specializations?.length ? `- Niches/Specializations: ${params.specializations.join(", ")}` : ""}
+`;
+
+  const singleAngle = params.singleVariantAngle;
+  const prompt = singleAngle
+    ? `You are an elite video screenwriter and content creator strategist.
+Creator Profile:
+${creatorContext}
+
+Generate ONE high-retention video script for:
+- Topic: "${params.topic}"
 - Target Audience: ${params.targetAudience || "Broad creator audience"}
 - Platform: ${params.platform || "YouTube"}
 - Tone: ${params.tone || "Engaging, authoritative, energetic"}
-- Target Duration: ${params.duration || "3-5 minutes"}
-- Content Type: ${params.contentType || "YouTube video"}
+- Target Duration: ${params.duration || "2-4 minutes"}
+- Required Story Angle: "${singleAngle}"
 
-Structure requirements:
-1. Script must include: [SCENE START], Opening hook, Key takeaway setup, Main points with scene directions/visual cues, Pattern interrupts, Transitions, and Call To Action (CTA).
-2. Generate 6 distinct alternate hooks (emotional, curiosity gap, contrarian, statistical, story-based, urgency).
-3. Generate 4 high-CTR titles.
-4. Generate 2 platform-specific captions with hashtags.
+Requirements:
+1. Script must include: [SCENE START], scene directions in parentheses, spoken dialogue, pattern interrupts, and [CALL TO ACTION].
+2. Provide 4 hooks, 4 titles, 2 captions, 5 hashtags.
+3. Calculate wordCount and estimatedDuration (e.g. "2m 15s").
 
-Return ONLY a valid JSON object matching this structure:
-{
-  "title": "Selected Best Title",
-  "script": "Full script formatted with visual cues and scene headers...",
-  "hooks": ["Hook 1", "Hook 2", "Hook 3", "Hook 4", "Hook 5", "Hook 6"],
-  "titles": ["Title 1", "Title 2", "Title 3", "Title 4"],
-  "captions": ["Caption 1", "Caption 2"],
-  "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
-}
-`;
+Return ONLY a valid JSON array containing exactly ONE object matching:
+[
+  {
+    "angle": "${singleAngle}",
+    "title": "Title here",
+    "script": "Full script here...",
+    "hooks": ["Hook 1", "Hook 2", "Hook 3", "Hook 4"],
+    "titles": ["Title 1", "Title 2", "Title 3", "Title 4"],
+    "captions": ["Caption 1", "Caption 2"],
+    "hashtags": ["#tag1", "#tag2", "#tag3"],
+    "wordCount": 290,
+    "estimatedDuration": "2m 15s"
+  }
+]`
+    : `You are an elite video screenwriter and viral content strategist.
+Creator Profile:
+${creatorContext}
+
+Generate 4 high-retention video script variants for:
+- Topic: "${params.topic}"
+- Target Audience: ${params.targetAudience || "Broad creator audience"}
+- Platform: ${params.platform || "YouTube"}
+- Tone: ${params.tone || "Engaging, authoritative, energetic"}
+- Target Duration: ${params.duration || "2-4 minutes"}
+
+You MUST generate exactly 4 distinct variants in ONE JSON array, each approaching the topic from a completely different storytelling angle:
+1. "Story-driven": Personal narrative, tension, conflict, climax, resolution, emotional vulnerability.
+2. "Educational / how-to": Step-by-step framework, actionable tactics, zero fluff, clear demonstrations.
+3. "Bold / contrarian take": Challenges common consensus, exposes misconceptions, strong thesis, pattern interrupt.
+4. "Fast-paced listicle": Rapid-fire 3-5 punchy points, high-energy pacing, visual cuts, high retention.
+
+For EACH of the 4 variants provide:
+- angle: exactly one of "Story-driven" | "Educational / how-to" | "Bold / contrarian take" | "Fast-paced listicle"
+- title: punchy high-CTR title
+- script: complete script with [SCENE START], visual directions, dialogue, and [CALL TO ACTION]
+- hooks: 4 distinct opening hooks
+- titles: 4 title options
+- captions: 2 social captions
+- hashtags: 4-5 relevant hashtags
+- wordCount: number of words
+- estimatedDuration: formatted string like "2m 15s"
+
+Return ONLY a valid JSON array of 4 objects.`;
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      });
       const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
-      if (parsed.script && Array.isArray(parsed.hooks)) {
-        return parsed;
+      const text = result.response.text().trim();
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((v) => ({
+          angle: (v.angle || singleAngle || "Story-driven") as ScriptAngle,
+          title: v.title || `Mastering ${params.topic}`,
+          script: v.script || "",
+          hooks: Array.isArray(v.hooks) ? v.hooks : [],
+          titles: Array.isArray(v.titles) ? v.titles : [],
+          captions: Array.isArray(v.captions) ? v.captions : [],
+          hashtags: Array.isArray(v.hashtags) ? v.hashtags : ["#creator", "#growth"],
+          wordCount: v.wordCount || v.script?.split(/\s+/).length || 260,
+          estimatedDuration: v.estimatedDuration || "2m 30s",
+        }));
       }
     } catch (err) {
       console.warn("Gemini script generation fallback:", err);
     }
   }
 
-  // High quality fallback script
-  const topic = params.topic || "AI Video Production";
-  const duration = params.duration || "3 minutes";
+  return getFallbackScriptVariants(params);
+}
 
-  return {
-    title: `The Ultimate Guide to ${topic} (Step-by-Step)`,
-    script: `[SCENE START]
-(Camera: Tight shot, high energy, quick visual zoom)
+function getFallbackScriptVariants(params: GenerateScriptParams): ScriptVariant[] {
+  const topic = params.topic || "AI Video Production";
+  const duration = params.duration || "2m 30s";
+
+  const allVariants: ScriptVariant[] = [
+    {
+      angle: "Story-driven",
+      title: `How I Changed My Entire Approach to ${topic}`,
+      script: `[SCENE START]
+(Camera: Close-up, reflective lighting, quiet room ambience)
 
 HOOK:
-"If you are still doing ${topic} manually, you are wasting 80% of your production time. In this video, I will show you the exact automated blueprint I use to cut production time in half."
+"Two years ago, I almost burned out completely trying to keep up with ${topic}. Here is the single realization that saved my creative business."
 
-(Visual: Cut to rapid B-roll montage of live workflow and metrics)
+(Visual: Cut to archive montage of sleepless nights, messy timelines, and endless revisions)
 
-INTRODUCTION:
-Most people struggle with ${topic} because they jump straight into execution without a systematic framework.
-Today, we are breaking down:
-1. The Foundation: Setting up your parameters before recording
-2. The Execution: How to produce 10x faster without sacrificing quality
-3. The Distribution Engine: Turning one piece of content into multiple platform assets.
+THE CONFLICT:
+I was doing what every creator is told to do: work 80 hours a week, post every single day, and manually polish every second.
+The result? My views plateaued, and I hated the process.
 
-[SECTION 1: THE CORE SETUP]
-(Visual: Screen recording showing setup steps)
-First, never start from a blank screen. Structure your core idea into three digestible pillars: Problem, Solution, and Immediate Action.
+THE TURNING POINT:
+Then, last October, I decided to test a radical rule: What if every single workflow for ${topic} had to be automated or eliminated?
 
-[SECTION 2: ACCELERATING PRODUCTION]
-(Visual: Split screen comparing old manual way vs. new streamlined workflow)
-The key bottleneck is context switching. When you batch your ideation, scripting, and asset gathering in one workspace, your creative momentum never drops.
-
-[SECTION 3: THE HIGH-CTR POLISH]
-(Visual: Close-up on editor with animated text callouts)
-Pay special attention to the first 5 seconds. If your hook doesn't create an open loop, viewers swipe away before your best insights.
+[SCENE 2: THE NEW SYSTEM]
+(Visual: Fast screen recording showing streamlined workspace)
+I stripped away 90% of the manual busywork and focused solely on high-leverage storytelling.
+Within 30 days, retention jumped by 45%, and production time dropped by half.
 
 [CALL TO ACTION]
-"If this breakdown gave you clarity, hit the like button and subscribe for next week's deep dive. Drop a comment below with your biggest question on ${topic}, and I'll reply to every single one!"
+"If you feel trapped on the content treadmill, drop a comment with your biggest roadblock in ${topic}. Let's build a smarter system together."
 [SCENE END]`,
-    hooks: [
-      `If you are still doing ${topic} the old way, you are wasting 80% of your time.`,
-      `Nobody is telling you the truth about ${topic} in 2026. Here is what actually works.`,
-      `I tested 50 different methods for ${topic} so you don't have to. Here are the 3 that matter.`,
-      `What if I told you that one simple shift in ${topic} could 10x your audience retention?`,
-      `Stop overcomplicating ${topic}. Here is the 3-step formula anyone can execute today.`,
-      `Before you record your next video on ${topic}, make sure you watch this 60-second warning.`,
-    ],
-    titles: [
-      `The Ultimate Guide to ${topic} (Step-by-Step)`,
-      `How to Master ${topic} in 2026 Without Overwhelm`,
-      `I Solved My Biggest ${topic} Problem with This Strategy`,
-      `The ${duration} Blueprint for ${topic} That Changes Everything`,
-    ],
-    captions: [
-      `Stop spending days on ${topic}. Here is the exact streamlined framework you need to ship faster and higher quality content! 🚀 Tap the link in bio for the complete workflow. #creator #productivity #contentstrategy #${topic.replace(/\s+/g, "").toLowerCase()}`,
-      `The difference between amateur and pro creators isn't talent — it's systems. Here is how I streamlined ${topic} this week! 💡 Drop a 🔥 if you want the checklist.`,
-    ],
-    hashtags: ["#contentcreator", "#videoediting", "#creatortools", "#growth", "#productivity"],
+      hooks: [
+        `Two years ago, I almost quit ${topic} forever. Here is what changed.`,
+        `The biggest mistake I made in my first 1,000 hours of ${topic}.`,
+        `I spent $5,000 learning this lesson about ${topic} so you don't have to.`,
+        `Why hitting rock bottom with ${topic} was the best thing that ever happened to me.`,
+      ],
+      titles: [
+        `How I Changed My Entire Approach to ${topic}`,
+        `The Hard Truth About ${topic} Nobody Talks About`,
+        `My ${topic} Journey: From Burnout to 10x Output`,
+        `I Tested Everything in ${topic} — Here's the Real Story`,
+      ],
+      captions: [
+        `The real secret to sustainable output isn't working harder. Here's my honest story with ${topic}. #creator #authenticity #growth`,
+        `Burnout taught me more about ${topic} than 100 tutorials ever could. Full story in video! 💡 #solopreneur`,
+      ],
+      hashtags: ["#storytelling", "#creatorlife", "#growth", "#productivity"],
+      wordCount: 245,
+      estimatedDuration: duration,
+    },
+    {
+      angle: "Educational / how-to",
+      title: `The 3-Step Blueprint for ${topic} in 2026`,
+      script: `[SCENE START]
+(Camera: High energy, well-lit studio, dynamic screen-in-screen)
+
+HOOK:
+"If you are still doing ${topic} manually, you are wasting 80% of your time. Here is the step-by-step masterclass to execute it like a top 1% creator."
+
+(Visual: 3-step numbered roadmap graphic on screen)
+
+STEP 1: THE FOUNDATION
+Never start from scratch. Define your target audience and core hypothesis before opening your editor.
+
+STEP 2: THE EXECUTION FRAMEWORK
+(Visual: Live screen capture demonstrating the exact workflow)
+Batch your inputs. Write your hook first, structure three actionable points, and use visual pattern interrupts every 8 seconds.
+
+STEP 3: MULTI-PLATFORM DISTRIBUTION
+Turn this primary video into 4 short-form clips, 1 carousel, and 1 newsletter.
+
+[CALL TO ACTION]
+"Save this video for your next production day, and hit subscribe for weekly creator playbooks!"
+[SCENE END]`,
+      hooks: [
+        `The exact 3-step framework top creators use for ${topic}.`,
+        `Master ${topic} in under 3 minutes with this exact framework.`,
+        `Stop guessing with ${topic}. Here is the complete step-by-step blueprint.`,
+        `The step-by-step tutorial I wish I had when I started ${topic}.`,
+      ],
+      titles: [
+        `The 3-Step Blueprint for ${topic} in 2026`,
+        `How to Master ${topic} (Complete Step-by-Step Guide)`,
+        `${topic} Explained in 3 Minutes: Beginner to Pro`,
+        `The Only ${topic} Tutorial You Will Ever Need`,
+      ],
+      captions: [
+        `A zero-fluff breakdown on how to master ${topic} this week. Tap to watch the full tutorial! 🚀 #education #tutorial`,
+        `Bookmark this 3-step playbook for ${topic}. Link in bio for the complete template! 📌 #creator`,
+      ],
+      hashtags: ["#tutorial", "#howto", "#productivity", "#education"],
+      wordCount: 220,
+      estimatedDuration: duration,
+    },
+    {
+      angle: "Bold / contrarian take",
+      title: `Why Everything You've Been Told About ${topic} Is Wrong`,
+      script: `[SCENE START]
+(Camera: Slow zoom-in, direct to lens, intense focus)
+
+HOOK:
+"95% of people teaching ${topic} are repeating advice from 2020 that simply does not work anymore. Here is the uncomfortable truth."
+
+(Visual: Red 'X' graphics crossing out common outdated tactics)
+
+THE CONTROVERSIAL REALITY:
+Most gurus tell you to spend hours obsessing over vanity metrics and camera gear.
+In reality? Modern audiences swipe away if your first 3 seconds don't challenge their worldview.
+
+THE PROOF:
+Look at the retention curve of traditional videos versus pattern-interrupt narratives.
+When you challenge consensus early, retention spikes by over 60%.
+
+[CALL TO ACTION]
+"Do you agree with this take or do you think I'm completely wrong? Drop your hottest take in the comments below!"
+[SCENE END]`,
+      hooks: [
+        `Why everything you have been told about ${topic} is completely backwards.`,
+        `Stop listening to outdated advice on ${topic}. Here is why.`,
+        `The uncomfortable truth about ${topic} that most gurus hide.`,
+        `Why 95% of creators fail at ${topic} before they even start.`,
+      ],
+      titles: [
+        `Why Everything You've Been Told About ${topic} Is Wrong`,
+        `The Death of Traditional ${topic} (And What Replaces It)`,
+        `Stop Doing ${topic} Like This in 2026`,
+        `The Uncomfortable Truth About ${topic}`,
+      ],
+      captions: [
+        `Most creators are still following advice from 2020. Here is why it is hurting your reach on ${topic}. 🔥 #contrarian #creator`,
+        `Hot take: You are over-engineering ${topic}. Tell me if you agree in the comments! 👇 #debate`,
+      ],
+      hashtags: ["#hottake", "#debate", "#contrarian", "#insights"],
+      wordCount: 195,
+      estimatedDuration: duration,
+    },
+    {
+      angle: "Fast-paced listicle",
+      title: `4 Game-Changing Hacks for ${topic} You Need Today`,
+      script: `[SCENE START]
+(Camera: Quick cuts, upbeat Lo-Fi audio, energetic delivery)
+
+HOOK:
+"4 rapid-fire secrets for ${topic} that will save you 10 hours this week. Number 3 feels almost illegal to know."
+
+#1: THE 3-SECOND RULE
+Cut the introductory fluff. Start right in the middle of the action.
+
+#2: THE REPURPOSING STACK
+One script should equal 5 platform assets. Never write once for just one destination.
+
+#3: STRUCTURED HOOK FORMULAS
+Use curiosity gaps with concrete numbers to double your click-through rate.
+
+#4: THE 48-HOUR SPRINT
+If your production takes more than 48 hours, trim your scope. Momentum beats perfection.
+
+[CALL TO ACTION]
+"Which of these 4 will you try first? Like and follow for daily creator systems!"
+[SCENE END]`,
+      hooks: [
+        `4 game-changing hacks for ${topic} you need to know today.`,
+        `3 secrets about ${topic} that top 1% creators keep to themselves.`,
+        `Steal these 4 hacks to 5x your output on ${topic}.`,
+        `Quick fire: The 4 best tools and strategies for ${topic} right now.`,
+      ],
+      titles: [
+        `4 Game-Changing Hacks for ${topic} You Need Today`,
+        `The 4 Best Kept Secrets in ${topic}`,
+        `4 Quick Ways to 10x Your Output on ${topic}`,
+        `Stop Scrolling: 4 ${topic} Hacks You Can Use Right Now`,
+      ],
+      captions: [
+        `4 rapid-fire hacks for ${topic} to supercharge your workflow today! ⚡ Save this post for later. #tips #productivity`,
+        `Which of these 4 ${topic} tips are you using in your next project? Drop a number below! 🚀 #creator`,
+      ],
+      hashtags: ["#tips", "#shortcuts", "#hacks", "#creatorsecrets"],
+      wordCount: 185,
+      estimatedDuration: duration,
+    },
+  ];
+
+  if (params.singleVariantAngle) {
+    const matched = allVariants.filter((v) => v.angle === params.singleVariantAngle);
+    return matched.length > 0 ? matched : [allVariants[0]];
+  }
+
+  return allVariants;
+}
+
+export async function generateScript(
+  params: GenerateScriptParams
+): Promise<GeneratedScriptResponse> {
+  const variants = await generateScriptVariants(params);
+  const primary = variants[0];
+  return {
+    title: primary.title,
+    script: primary.script,
+    hooks: primary.hooks,
+    titles: primary.titles,
+    captions: primary.captions,
+    hashtags: primary.hashtags,
   };
 }
 
 // 3. GENERATE ALTERNATIVE HOOKS
-export async function generateHooks(topic: string, platform = "YouTube", count = 6): Promise<string[]> {
+export async function generateHooks(
+  topic: string,
+  platform = "YouTube",
+  count = 6,
+  creatorType?: string,
+  specializations?: string[]
+): Promise<string[]> {
   const client = getGeminiClient();
+  const creatorContext = `
+${creatorType ? `- Creator Persona: ${creatorType}` : ""}
+${specializations?.length ? `- Niches/Specializations: ${specializations.join(", ")}` : ""}
+`;
   const prompt = `Generate ${count} compelling, psychology-backed video hooks for ${platform} about: "${topic}".
+${creatorContext.trim() ? `Creator Context:${creatorContext}` : ""}
 Include diverse angles: curiosity gap, bold statement, contrarian take, numbers/metrics, relatability, urgency.
 Return ONLY a JSON array of strings: ["Hook 1", "Hook 2", ...]`;
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(text);
@@ -314,7 +561,7 @@ Return ONLY the revised script text without meta commentary.`;
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
       if (text) return text;
@@ -349,6 +596,8 @@ Return ONLY the revised script text without meta commentary.`;
 export interface RepurposeParams {
   sourceText: string;
   sourceType: "Script" | "Video Transcript" | "Existing Post" | "Podcast";
+  creatorType?: string;
+  specializations?: string[];
 }
 
 export interface RepurposeResult {
@@ -384,8 +633,13 @@ export interface RepurposeResult {
 
 export async function repurposeContent(params: RepurposeParams): Promise<RepurposeResult> {
   const client = getGeminiClient();
+  const creatorContext = `
+${params.creatorType ? `- Creator Persona: ${params.creatorType}` : ""}
+${params.specializations?.length ? `- Niches/Specializations: ${params.specializations.join(", ")}` : ""}
+`;
   const prompt = `You are a world-class multi-platform content strategist.
 Transform this source ${params.sourceType} into native, platform-optimized formats for Instagram, YouTube, LinkedIn, X (Twitter), and Short-form video (TikTok/Reels/Shorts).
+${creatorContext.trim() ? `Creator Profile Context:\n${creatorContext}` : ""}
 
 Source text:
 """
@@ -433,7 +687,7 @@ Return ONLY a valid JSON object matching this exact structure:
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(text);
@@ -558,7 +812,7 @@ Return ONLY a JSON array of objects:
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(text);
@@ -642,7 +896,7 @@ Return ONLY a valid JSON object matching:
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(text);
@@ -685,13 +939,20 @@ export interface ChatMessage {
 export async function chatWithCreatorAssistant(
   message: string,
   projectContext?: Record<string, unknown>,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  creatorProfile?: { creatorType?: string; specializations?: string[] }
 ): Promise<string> {
   const client = getGeminiClient();
   const contextString = projectContext ? `Current Project Context: ${JSON.stringify(projectContext)}` : "";
+  const profileString = creatorProfile
+    ? `Creator Profile: ${creatorProfile.creatorType || "Creator"}${
+        creatorProfile.specializations?.length ? ` (Niches: ${creatorProfile.specializations.join(", ")})` : ""
+      }`
+    : "";
 
   const prompt = `You are CreatorAI's resident Creative Director & Workflow Copilot.
 You assist creators with ideas, script refinement, hook optimization, clip discovery, and multi-platform distribution.
+${profileString}
 ${contextString}
 
 Previous chat context:
@@ -703,7 +964,7 @@ Give a direct, energetic, actionable response tailored to high-performing digita
 
   if (client) {
     try {
-      const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(prompt);
       return result.response.text().trim();
     } catch (e) {

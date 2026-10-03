@@ -36,17 +36,82 @@
 ::-webkit-scrollbar-thumb:hover { background:#5e5f62; }
 .ambient-glow { display:none; }
 
-/* Existing dashboard pages contain legacy Tailwind color utilities. Keep their layout/components, but make the visual language consistent. */
-.creator-dashboard [class*="bg-[#07090e]"],.creator-dashboard [class*="bg-[#090d16]"],.creator-dashboard [class*="bg-[#0d121f]"] { background-color:rgba(255,255,255,.50)!important; color:#111214!important; }
-.creator-dashboard [class*="bg-white/[0.0"],.creator-dashboard [class*="bg-white/[0.1"] { background-color:rgba(255,255,255,.42)!important; }
-.creator-dashboard [class*="border-white/"] { border-color:rgba(17,18,20,.10)!important; }
-.creator-dashboard [class*="text-slate-"] { color:#686a6e!important; }
-.creator-dashboard [class*="text-white"] { color:#111214!important; }
-.creator-dashboard [class*="text-indigo-"],.creator-dashboard [class*="text-purple-"],.creator-dashboard [class*="text-cyan-"] { color:#111214!important; }
-.creator-dashboard [class*="from-indigo-"],.creator-dashboard [class*="from-purple-"],.creator-dashboard [class*="via-purple-"],.creator-dashboard [class*="to-cyan-"] { background-image:none!important; background-color:#111214!important; color:#fff!important; }
-.creator-dashboard [class*="shadow-indigo-"],.creator-dashboard [class*="shadow-purple-"] { box-shadow:0 14px 38px rgba(20,20,20,.10)!important; }
-.creator-dashboard .bg-red-500\/10 { background:rgba(127,29,29,.07)!important; }
-.creator-dashboard .text-red-300,.creator-dashboard .text-red-400 { color:#991b1b!important; }
-.creator-dashboard .text-emerald-400,.creator-dashboard .text-emerald-500 { color:#374151!important; }
+/* Explicit design system components & utilities */
+.btn-primary, .creator-btn-primary, .creator-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background-color: #111214;
+  color: #ffffff !important;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: all 180ms ease;
+}
+.btn-primary:hover, .creator-btn-primary:hover, .creator-button:hover {
+  background-color: #23252a;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.btn-primary svg, .creator-btn-primary svg, .creator-button svg {
+  color: #ffffff !important;
+}
+
+.btn-secondary, .creator-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.65);
+  color: #111214 !important;
+  font-weight: 600;
+  border: 1px solid rgba(17, 18, 20, 0.12);
+  backdrop-filter: blur(12px);
+  transition: all 180ms ease;
+}
+.btn-secondary:hover, .creator-btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #111214 !important;
+  border-color: rgba(17, 18, 20, 0.22);
+}
+.btn-secondary svg, .creator-btn-secondary svg {
+  color: #111214 !important;
+}
+
+.icon-badge-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #111214;
+  color: #ffffff !important;
+  border-radius: 12px;
+}
+.icon-badge-dark svg {
+  color: #ffffff !important;
+}
+
+.icon-badge-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(17, 18, 20, 0.1);
+  color: #111214 !important;
+  border-radius: 12px;
+}
+.icon-badge-glass svg {
+  color: #111214 !important;
+}
+
+.creator-dark-card {
+  background: #111214 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 24px;
+}
 
 @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto;} *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;} }

@@ -5,6 +5,7 @@ import {
   Idea,
   Script,
   Asset,
+  AssetChunk,
   Clip,
   RepurposedContent,
   Analytics,
@@ -17,7 +18,6 @@ import {
   IClip,
   IRepurposedContent,
   IAnalytics,
-  IAIHistory,
 } from "@/models";
 import { memoryStore, generateId, seedRealisticDemoData } from "./memory-store";
 
@@ -63,6 +63,52 @@ export const DataService = {
     };
     memoryStore.users.push(newUser);
     return newUser;
+  },
+
+  async updateUser(id: string, data: Partial<IUser>): Promise<IUser | null> {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const updated = await User.findByIdAndUpdate(id, data, { new: true }).lean();
+      return updated ? (JSON.parse(JSON.stringify(updated)) as IUser) : null;
+    }
+    const idx = memoryStore.users.findIndex((u) => u._id === id);
+    if (idx === -1) return null;
+    const updated = { ...memoryStore.users[idx], ...data };
+    memoryStore.users[idx] = updated;
+    return updated;
+  },
+
+  async deleteUserAndData(userId: string): Promise<boolean> {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const userAssets = await Asset.find({ userId }).select("_id").lean();
+      const assetIds = userAssets.map((a) => String(a._id));
+      if (assetIds.length > 0) {
+        await AssetChunk.deleteMany({ assetId: { $in: assetIds } });
+      }
+      await Asset.deleteMany({ userId });
+      await Project.deleteMany({ userId });
+      await Idea.deleteMany({ userId });
+      await Script.deleteMany({ userId });
+      await Clip.deleteMany({ userId });
+      await RepurposedContent.deleteMany({ userId });
+      await Analytics.deleteMany({ userId });
+      await AIHistory.deleteMany({ userId });
+      await User.deleteOne({ _id: userId });
+    }
+
+    // Always clear memory store as well
+    memoryStore.users = memoryStore.users.filter((u) => u._id !== userId);
+    memoryStore.projects = memoryStore.projects.filter((p) => p.userId !== userId);
+    memoryStore.ideas = memoryStore.ideas.filter((i) => i.userId !== userId);
+    memoryStore.scripts = memoryStore.scripts.filter((s) => s.userId !== userId);
+    memoryStore.assets = memoryStore.assets.filter((a) => a.userId !== userId);
+    memoryStore.clips = memoryStore.clips.filter((c) => c.userId !== userId);
+    memoryStore.repurposed = memoryStore.repurposed.filter((r) => r.userId !== userId);
+    memoryStore.analytics = memoryStore.analytics.filter((an) => an.userId !== userId);
+    memoryStore.aiHistory = memoryStore.aiHistory.filter((ai) => ai.userId !== userId);
+
+    return true;
   },
 
   // --- PROJECTS ---
@@ -373,10 +419,34 @@ export const DataService = {
     return newAsset;
   },
 
+  async updateAsset(userId: string, assetId: string, data: Partial<IAsset>): Promise<IAsset | null> {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const updated = await Asset.findOneAndUpdate(
+        { _id: assetId, userId },
+        { ...data, updatedAt: new Date() },
+        { new: true }
+      ).lean();
+      return updated ? (JSON.parse(JSON.stringify(updated)) as IAsset) : null;
+    }
+    const idx = memoryStore.assets.findIndex((a) => a._id === assetId && a.userId === userId);
+    if (idx === -1) return null;
+    const updated = {
+      ...memoryStore.assets[idx],
+      ...data,
+      updatedAt: new Date(),
+    };
+    memoryStore.assets[idx] = updated;
+    return updated;
+  },
+
   async deleteAsset(userId: string, assetId: string): Promise<boolean> {
     const conn = await connectToDatabase();
     if (conn) {
       const res = await Asset.deleteOne({ _id: assetId, userId });
+      if (res.deletedCount > 0) {
+        await AssetChunk.deleteMany({ assetId });
+      }
       return res.deletedCount > 0;
     }
     const initialLen = memoryStore.assets.length;
@@ -385,17 +455,23 @@ export const DataService = {
   },
 
   // --- CLIPS ---
-  async getClips(userId: string, projectId?: string): Promise<IClip[]> {
+  async getClips(userId: string, projectId?: string, assetId?: string): Promise<IClip[]> {
     const conn = await connectToDatabase();
     const query: Record<string, string> = { userId };
     if (projectId) query.projectId = projectId;
+    if (assetId) query.assetId = assetId;
 
     if (conn) {
       const items = await Clip.find(query).sort({ startTime: 1 }).lean();
       return JSON.parse(JSON.stringify(items)) as IClip[];
     }
     return memoryStore.clips
-      .filter((c) => c.userId === userId && (!projectId || c.projectId === projectId))
+      .filter(
+        (c) =>
+          c.userId === userId &&
+          (!projectId || c.projectId === projectId) &&
+          (!assetId || c.assetId === assetId)
+      )
       .sort((a, b) => a.startTime - b.startTime);
   },
 
@@ -414,6 +490,7 @@ export const DataService = {
       _id: generateId(),
       userId,
       projectId: data.projectId || "",
+      assetId: data.assetId || "",
       title: data.title || "Clip",
       startTime: data.startTime || 0,
       endTime: data.endTime || 30,
@@ -422,6 +499,8 @@ export const DataService = {
       platform: data.platform || "YouTube Shorts",
       reason: data.reason || "",
       matchedScriptSection: data.matchedScriptSection || "",
+      confidence: data.confidence || 0.9,
+      origin: data.origin || "ai",
       status: data.status || "SUGGESTED",
       createdAt: now,
     };
@@ -511,6 +590,197 @@ export const DataService = {
     return memoryStore.analytics
       .filter((a) => a.userId === userId && (!projectId || a.projectId === projectId))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  },
+
+  async createAnalytics(userId: string, data: Partial<IAnalytics>): Promise<IAnalytics> {
+    const conn = await connectToDatabase();
+    const views = Number(data.views) || 0;
+    const likes = Number(data.likes) || 0;
+    const comments = Number(data.comments) || 0;
+    const shares = Number(data.shares) || 0;
+    const engagement = views > 0 ? Number((((likes + comments + shares) / views) * 100).toFixed(2)) : 0;
+    const date = data.date ? new Date(data.date) : new Date();
+
+    if (conn) {
+      const item = await Analytics.create({
+        ...data,
+        userId,
+        views,
+        likes,
+        comments,
+        shares,
+        engagement,
+        date,
+      });
+      return JSON.parse(JSON.stringify(item)) as IAnalytics;
+    }
+    const newEntry: IAnalytics = {
+      _id: generateId(),
+      userId,
+      projectId: data.projectId || "",
+      platform: data.platform || "YouTube",
+      views,
+      likes,
+      comments,
+      shares,
+      engagement,
+      date,
+    };
+    memoryStore.analytics.unshift(newEntry);
+    return newEntry;
+  },
+
+  async deleteAnalytics(userId: string, id: string): Promise<boolean> {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const res = await Analytics.deleteOne({ _id: id, userId });
+      return res.deletedCount > 0;
+    }
+    const initialLen = memoryStore.analytics.length;
+    memoryStore.analytics = memoryStore.analytics.filter((a) => !(a._id === id && a.userId === userId));
+    return memoryStore.analytics.length < initialLen;
+  },
+
+  async getContentPipelineStats(userId: string) {
+    const conn = await connectToDatabase();
+    if (conn) {
+      const [ideas, scripts, clips, repurposed, projects, analytics] = await Promise.all([
+        Idea.find({ userId }).lean(),
+        Script.find({ userId }).lean(),
+        Clip.find({ userId }).lean(),
+        RepurposedContent.find({ userId }).lean(),
+        Project.find({ userId }).lean(),
+        Analytics.find({ userId }).lean(),
+      ]);
+
+      const ideasByStatus = {
+        IDEA: ideas.filter((i) => i.status === "IDEA").length,
+        PLANNED: ideas.filter((i) => i.status === "PLANNED").length,
+        IN_PRODUCTION: ideas.filter((i) => i.status === "IN PRODUCTION").length,
+        PUBLISHED: ideas.filter((i) => i.status === "PUBLISHED").length,
+      };
+
+      const clipsByStatus = {
+        SUGGESTED: clips.filter((c) => c.status === "SUGGESTED").length,
+        APPROVED: clips.filter((c) => c.status === "APPROVED").length,
+        REJECTED: clips.filter((c) => c.status === "REJECTED").length,
+      };
+
+      const repurposedByPlatform: Record<string, number> = {};
+      repurposed.forEach((r) => {
+        const plat = r.platform || "Other";
+        repurposedByPlatform[plat] = (repurposedByPlatform[plat] || 0) + 1;
+      });
+
+      const projectsByStage: Record<string, number> = {
+        IDEA: 0,
+        SCRIPTING: 0,
+        RECORDING: 0,
+        EDITING: 0,
+        REPURPOSING: 0,
+        PUBLISHED: 0,
+      };
+      projects.forEach((p) => {
+        const stage = p.status || "IDEA";
+        projectsByStage[stage] = (projectsByStage[stage] || 0) + 1;
+      });
+
+      const activityDates = new Set<string>();
+      analytics.forEach((a) => {
+        if (a.date) activityDates.add(new Date(a.date).toISOString().split("T")[0]);
+      });
+      projects.filter((p) => p.status === "PUBLISHED").forEach((p) => {
+        if (p.updatedAt) activityDates.add(new Date(p.updatedAt).toISOString().split("T")[0]);
+      });
+
+      let streak = 0;
+      if (activityDates.size > 0) {
+        const today = new Date();
+        const cursor = new Date(today);
+        const todayStr = cursor.toISOString().split("T")[0];
+        cursor.setDate(cursor.getDate() - 1);
+        const yesterdayStr = cursor.toISOString().split("T")[0];
+
+        const startCursor = activityDates.has(todayStr) ? new Date(today) : (activityDates.has(yesterdayStr) ? cursor : null);
+        if (startCursor) {
+          while (true) {
+            const dateStr = startCursor.toISOString().split("T")[0];
+            if (activityDates.has(dateStr)) {
+              streak++;
+              startCursor.setDate(startCursor.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+        }
+      }
+
+      return {
+        ideasCount: ideas.length,
+        ideasByStatus,
+        scriptsCount: scripts.length,
+        clipsCount: clips.length,
+        clipsByStatus,
+        repurposedCount: repurposed.length,
+        repurposedByPlatform,
+        projectsCount: projects.length,
+        projectsByStage,
+        publishingStreak: streak,
+      };
+    }
+
+    // In-memory fallback
+    const ideas = memoryStore.ideas.filter((i) => i.userId === userId);
+    const scripts = memoryStore.scripts.filter((s) => s.userId === userId);
+    const clips = memoryStore.clips.filter((c) => c.userId === userId);
+    const repurposed = memoryStore.repurposed.filter((r) => r.userId === userId);
+    const projects = memoryStore.projects.filter((p) => p.userId === userId);
+    const analytics = memoryStore.analytics.filter((a) => a.userId === userId);
+
+    const ideasByStatus = {
+      IDEA: ideas.filter((i) => i.status === "IDEA").length,
+      PLANNED: ideas.filter((i) => i.status === "PLANNED").length,
+      IN_PRODUCTION: ideas.filter((i) => i.status === "IN PRODUCTION").length,
+      PUBLISHED: ideas.filter((i) => i.status === "PUBLISHED").length,
+    };
+
+    const clipsByStatus = {
+      SUGGESTED: clips.filter((c) => c.status === "SUGGESTED").length,
+      APPROVED: clips.filter((c) => c.status === "APPROVED").length,
+      REJECTED: clips.filter((c) => c.status === "REJECTED").length,
+    };
+
+    const repurposedByPlatform: Record<string, number> = {};
+    repurposed.forEach((r) => {
+      const plat = r.platform || "Other";
+      repurposedByPlatform[plat] = (repurposedByPlatform[plat] || 0) + 1;
+    });
+
+    const projectsByStage: Record<string, number> = {
+      IDEA: 0,
+      SCRIPTING: 0,
+      RECORDING: 0,
+      EDITING: 0,
+      REPURPOSING: 0,
+      PUBLISHED: 0,
+    };
+    projects.forEach((p) => {
+      const stage = p.status || "IDEA";
+      projectsByStage[stage] = (projectsByStage[stage] || 0) + 1;
+    });
+
+    return {
+      ideasCount: ideas.length,
+      ideasByStatus,
+      scriptsCount: scripts.length,
+      clipsCount: clips.length,
+      clipsByStatus,
+      repurposedCount: repurposed.length,
+      repurposedByPlatform,
+      projectsCount: projects.length,
+      projectsByStage,
+      publishingStreak: Math.min(analytics.length, 5),
+    };
   },
 
   // --- DEMO SEEDING ---

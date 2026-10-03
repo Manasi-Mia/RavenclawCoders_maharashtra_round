@@ -21,10 +21,12 @@ export async function POST(req: NextRequest) {
       targetAudience,
       platform,
       contentStyle,
+      creatorType: user.creatorType,
+      specializations: user.specializations,
     });
 
     // If autoSave requested, save directly to user's idea list
-    let savedIdeas = [];
+    const savedIdeas = [];
     if (autoSave && Array.isArray(generated)) {
       for (const item of generated) {
         const saved = await DataService.createIdea(user._id, {

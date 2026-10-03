@@ -11,8 +11,9 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId") || undefined;
+    const assetId = searchParams.get("assetId") || undefined;
 
-    const clips = await DataService.getClips(user._id, projectId);
+    const clips = await DataService.getClips(user._id, projectId, assetId);
     return NextResponse.json({ clips });
   } catch (error) {
     console.error("GET Clips Error:", error);
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
       matchedScriptSection: body.matchedScriptSection || "",
       status: body.status || "SUGGESTED",
       projectId: body.projectId || "",
+      assetId: body.assetId || "",
+      confidence: body.confidence !== undefined ? Number(body.confidence) : 0.9,
+      origin: body.origin || "user",
     });
 
     return NextResponse.json({ clip }, { status: 201 });

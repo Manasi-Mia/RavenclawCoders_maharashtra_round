@@ -94,39 +94,37 @@ export function AssistantDrawer({
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-16 lg:bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 p-3.5 sm:px-5 sm:py-3 font-semibold text-white shadow-xl shadow-indigo-500/30 hover:scale-105 active:scale-95 transition duration-200"
+          className="fixed bottom-16 lg:bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-[#111214] px-4 py-3 font-semibold text-white shadow-xl shadow-black/25 hover:bg-[#232529] hover:scale-105 active:scale-95 transition duration-200 border border-white/15"
           title="Open AI Creator Copilot"
         >
-          <Sparkles className="h-5 w-5 text-cyan-200 animate-pulse" />
-          <span className="hidden sm:inline text-sm">Ask Creator Copilot</span>
+          <Sparkles className="h-5 w-5 text-white animate-pulse" />
+          <span className="hidden sm:inline text-sm font-semibold text-white">Ask Creator Copilot</span>
         </button>
       )}
 
       {/* Slide-out / Bottom-sheet Drawer */}
       {isOpen && (
-        <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[420px] max-w-full h-[85vh] sm:h-[600px] flex flex-col rounded-t-2xl sm:rounded-2xl border border-white/10 bg-[#0d121f]/95 shadow-2xl backdrop-blur-2xl overflow-hidden">
+        <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[420px] max-w-full h-[85vh] sm:h-[600px] flex flex-col rounded-t-2xl sm:rounded-2xl border border-black/10 bg-[#f4f2ee]/95 shadow-2xl backdrop-blur-2xl overflow-hidden text-[#111214]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] bg-[#090d16]/90 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-black/10 bg-white/80 px-4 py-3 backdrop-blur-md">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 p-0.5">
-                <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#0d121f]">
-                  <Wand2 className="h-4 w-4 text-cyan-300" />
-                </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111214] text-white shadow-sm">
+                <Wand2 className="h-4 w-4 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-[#111214] flex items-center gap-1.5">
                   Creator Copilot
-                  <span className="rounded bg-indigo-500/20 px-1.5 py-0.2 text-[9px] text-cyan-300 font-mono">
+                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] text-[#111214] font-mono border border-black/10">
                     Gemini
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-400">Context aware assistant</p>
+                <p className="text-[10px] text-[#66686c]">Context-aware creative partner</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+                className="rounded-lg p-1.5 text-[#66686c] hover:bg-black/5 hover:text-[#111214] transition"
               >
                 <ChevronDown className="h-4 w-4 sm:hidden" />
                 <X className="h-4 w-4 hidden sm:block" />
@@ -135,22 +133,22 @@ export function AssistantDrawer({
           </div>
 
           {/* Quick Action Chips */}
-          <div className="flex gap-2 overflow-x-auto p-2.5 border-b border-white/[0.06] bg-black/20 text-xs text-slate-300 no-scrollbar">
+          <div className="flex gap-2 overflow-x-auto p-2.5 border-b border-black/10 bg-white/40 text-xs no-scrollbar">
             <button
               onClick={() => handleSend("Turn my latest video into 5 Shorts clips with hooks")}
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] hover:border-indigo-400/40 hover:bg-indigo-500/10 transition flex items-center gap-1"
+              className="shrink-0 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[11px] font-medium text-[#111214] hover:bg-white transition flex items-center gap-1.5 shadow-xs"
             >
-              <Share2 className="h-3 w-3 text-cyan-400" /> Turn into 5 Shorts
+              <Share2 className="h-3 w-3 text-[#111214]" /> Turn into 5 Shorts
             </button>
             <button
               onClick={() => handleSend("Generate 5 high-converting alternative hooks")}
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] hover:border-purple-400/40 hover:bg-purple-500/10 transition"
+              className="shrink-0 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[11px] font-medium text-[#111214] hover:bg-white transition shadow-xs"
             >
               5 Strong Hooks
             </button>
             <button
               onClick={() => handleSend("How can I repurpose this script for LinkedIn?")}
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] hover:border-indigo-400/40 hover:bg-indigo-500/10 transition"
+              className="shrink-0 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[11px] font-medium text-[#111214] hover:bg-white transition shadow-xs"
             >
               Repurpose LinkedIn
             </button>
@@ -166,8 +164,8 @@ export function AssistantDrawer({
                 <div
                   className={`relative max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
                     m.role === "user"
-                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                      : "border border-white/10 bg-white/[0.04] text-slate-200"
+                      ? "bg-[#111214] text-white shadow-sm"
+                      : "border border-black/10 bg-white/80 text-[#111214] shadow-xs"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>
@@ -175,11 +173,11 @@ export function AssistantDrawer({
                   {m.role === "assistant" && (
                     <button
                       onClick={() => copyMessage(m.content, idx)}
-                      className="absolute bottom-1.5 right-1.5 rounded p-1 text-slate-400 hover:text-white transition"
+                      className="absolute bottom-1.5 right-1.5 rounded p-1 text-[#77797c] hover:text-[#111214] transition"
                       title="Copy response"
                     >
                       {copiedIdx === idx ? (
-                        <Check className="h-3 w-3 text-emerald-400" />
+                        <Check className="h-3 w-3 text-emerald-600" />
                       ) : (
                         <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
                       )}
@@ -189,8 +187,8 @@ export function AssistantDrawer({
               </div>
             ))}
             {loading && (
-              <div className="flex items-center gap-2 text-xs text-purple-300 bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2 w-fit">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+              <div className="flex items-center gap-2 text-xs text-[#111214] bg-white/80 border border-black/10 rounded-xl px-3 py-2 w-fit shadow-xs">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#111214]" />
                 Thinking with Gemini...
               </div>
             )}
@@ -198,7 +196,7 @@ export function AssistantDrawer({
           </div>
 
           {/* Input Box */}
-          <div className="border-t border-white/[0.08] p-3 bg-[#090d16]">
+          <div className="border-t border-black/10 p-3 bg-white/80 backdrop-blur-md">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -211,14 +209,14 @@ export function AssistantDrawer({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask Copilot (e.g. 'Improve this hook', 'Suggest 3 ideas')..."
-                className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex-1 rounded-xl border border-black/15 bg-white px-3.5 py-2 text-xs sm:text-sm text-[#111214] placeholder-[#8a8b8e] focus:border-black focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={!input.trim() || loading}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white disabled:opacity-40 transition hover:opacity-90"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#111214] text-white disabled:opacity-40 transition hover:bg-[#232529]"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 text-white" />}
               </button>
             </form>
           </div>

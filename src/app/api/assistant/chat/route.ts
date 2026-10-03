@@ -30,7 +30,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const reply = await chatWithCreatorAssistant(message, projectContext, history || []);
+    const reply = await chatWithCreatorAssistant(
+      message,
+      projectContext,
+      history || [],
+      { creatorType: user.creatorType, specializations: user.specializations }
+    );
 
     return NextResponse.json({ reply });
   } catch (error) {

@@ -41,19 +41,19 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "lg" }: Mod
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} rounded-2xl border border-white/10 bg-[#0d121f] p-6 shadow-2xl shadow-indigo-950/40 text-slate-100 max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} rounded-3xl border border-black/10 bg-[#f5f4f0]/95 p-6 shadow-2xl backdrop-blur-2xl text-[#111214] max-h-[90vh] overflow-y-auto`}
       >
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-4">
-          <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">{title}</h2>
+        <div className="flex items-center justify-between border-b border-black/10 pb-4 mb-4">
+          <h2 className="text-base sm:text-lg font-bold text-[#111214] tracking-tight">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+            className="rounded-xl p-1.5 text-[#66686c] hover:bg-black/5 hover:text-[#111214] transition"
           >
             <X className="h-5 w-5" />
           </button>

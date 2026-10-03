@@ -6,12 +6,9 @@ import {
   FolderOpen,
   Plus,
   ArrowRight,
-  Clock,
   Video,
-  CheckCircle2,
   Trash2,
   Loader2,
-  Layers,
 } from "lucide-react";
 import { IProject } from "@/models";
 import { formatDate } from "@/lib/utils";
@@ -87,42 +84,44 @@ export default function ProjectsListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <FolderOpen className="h-6 w-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold text-[#111214] tracking-tight flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111214] text-white shadow-sm">
+              <FolderOpen className="h-4 w-4 text-white" />
+            </span>
             Video Projects Hub
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-400">
+          <p className="mt-1 text-xs sm:text-sm text-[#66686c]">
             Every project integrates Idea → Script → Assets → Footage → Clips → Repurposing → Analytics in one unified view.
           </p>
         </div>
 
         <button
           onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 px-4 py-2.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 hover:opacity-95 transition"
+          className="creator-btn-primary px-4 py-2.5 text-xs font-semibold"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 text-white" />
           <span>New Project</span>
         </button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#111214]" />
         </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-20 rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-          <Video className="mx-auto h-8 w-8 text-slate-500" />
-          <h3 className="mt-3 text-sm font-semibold text-white">No video projects yet</h3>
-          <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="text-center py-20 rounded-3xl border border-dashed border-black/10 bg-white/40">
+          <Video className="mx-auto h-8 w-8 text-[#8a8b8e]" />
+          <h3 className="mt-3 text-sm font-semibold text-[#111214]">No video projects yet</h3>
+          <p className="mt-1 text-xs text-[#66686c] max-w-sm mx-auto">
             Create your first project or load the realistic creator demo dataset from the top header.
           </p>
           <button
             onClick={() => setModalOpen(true)}
-            className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition"
+            className="mt-5 inline-flex items-center gap-1.5 creator-btn-primary px-4 py-2 text-xs"
           >
-            <Plus className="h-3.5 w-3.5" /> Create Project
+            <Plus className="h-3.5 w-3.5 text-white" /> Create Project
           </button>
         </div>
       ) : (
@@ -130,10 +129,10 @@ export default function ProjectsListPage() {
           {projects.map((p) => (
             <div
               key={p._id}
-              className="group rounded-2xl border border-white/10 bg-[#0d121f]/90 overflow-hidden hover:border-indigo-500/40 transition duration-200 flex flex-col justify-between shadow-xl"
+              className="group rounded-3xl border border-black/10 bg-white/70 overflow-hidden hover:border-black/30 transition duration-200 flex flex-col justify-between shadow-xs backdrop-blur-md"
             >
               {/* Thumbnail / Header Banner */}
-              <div className="relative h-40 w-full overflow-hidden bg-black/60">
+              <div className="relative h-40 w-full overflow-hidden bg-black/5">
                 {p.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -142,23 +141,23 @@ export default function ProjectsListPage() {
                     className="h-full w-full object-cover group-hover:scale-105 transition duration-300"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-indigo-950 to-slate-900">
-                    <Video className="h-10 w-10 text-indigo-400/40" />
+                  <div className="flex h-full w-full items-center justify-center bg-black/5">
+                    <Video className="h-10 w-10 text-[#8a8b8e]" />
                   </div>
                 )}
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
+                  <span className="rounded-full bg-white/80 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-semibold text-[#111214] border border-black/5 shadow-xs">
                     {p.platform}
                   </span>
                 </div>
                 <div className="absolute top-3 right-3">
                   <span
-                    className={`rounded-md px-2 py-0.5 text-[10px] font-mono font-semibold backdrop-blur-md ${
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono font-semibold backdrop-blur-md shadow-xs ${
                       p.status === "PUBLISHED"
-                        ? "bg-emerald-950/80 text-emerald-400 border border-emerald-500/30"
+                        ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20"
                         : p.status === "RECORDING"
-                        ? "bg-cyan-950/80 text-cyan-400 border border-cyan-500/30"
-                        : "bg-black/70 text-slate-300"
+                        ? "bg-cyan-500/10 text-cyan-800 border border-cyan-500/20"
+                        : "bg-white/80 text-[#111214] border border-black/5"
                     }`}
                   >
                     {p.status}
@@ -169,31 +168,31 @@ export default function ProjectsListPage() {
               {/* Body */}
               <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition line-clamp-1">
+                  <h3 className="text-base font-bold text-[#111214] group-hover:text-black transition line-clamp-1">
                     {p.title}
                   </h3>
-                  <p className="mt-1 text-xs text-slate-400 line-clamp-2">
+                  <p className="mt-1 text-xs text-[#66686c] line-clamp-2">
                     {p.description || "Video project workflow."}
                   </p>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="space-y-2 pt-2 border-t border-black/10">
+                  <div className="flex items-center justify-between text-[11px] text-[#66686c]">
                     <span>Workflow Progress</span>
-                    <span className="font-semibold text-white">{p.progress}%</span>
+                    <span className="font-semibold text-[#111214]">{p.progress}%</span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/[0.08] overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-black/5 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400"
+                      className="h-full rounded-full bg-[#111214]"
                       style={{ width: `${p.progress}%` }}
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1">
+                  <div className="flex items-center justify-between text-[10px] text-[#66686c] font-mono pt-1">
                     <span>Deadline: {formatDate(p.deadline)}</span>
                     <button
                       onClick={() => handleDelete(p._id)}
-                      className="text-slate-500 hover:text-red-400 p-1"
+                      className="text-[#8a8b8e] hover:text-red-600 p-1 transition"
                       title="Delete project"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -203,7 +202,7 @@ export default function ProjectsListPage() {
 
                 <Link
                   href={`/dashboard/projects/${p._id}`}
-                  className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-indigo-600/30 border border-indigo-500/30 py-2 text-xs font-semibold text-cyan-300 hover:bg-indigo-600/50 transition"
+                  className="mt-3 flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white/70 py-2 text-xs font-semibold text-[#111214] hover:bg-white transition shadow-xs"
                 >
                   <span>Open Full Project Hub</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -222,35 +221,35 @@ export default function ProjectsListPage() {
       >
         <form onSubmit={handleCreateProject} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Project Title</label>
+            <label className="block text-xs font-semibold text-[#111214] mb-1">Project Title</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. How I Built My First AI App in 48 Hours"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-xs sm:text-sm text-white focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-black/15 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-[#111214] focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-[#111214] mb-1">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Overview of the content plan and goals..."
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs sm:text-sm text-white focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-black/15 bg-white px-3.5 py-2 text-xs sm:text-sm text-[#111214] focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Target Platform</label>
+              <label className="block text-xs font-semibold text-[#111214] mb-1">Target Platform</label>
               <select
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value as IProject["platform"])}
-                className="w-full rounded-xl border border-white/10 bg-[#090d16] px-3 py-2 text-xs text-white focus:outline-none"
+                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-xs text-[#111214] focus:outline-none"
               >
                 <option value="YouTube">YouTube</option>
                 <option value="Instagram">Instagram</option>
@@ -261,41 +260,41 @@ export default function ProjectsListPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Target Deadline</label>
+              <label className="block text-xs font-semibold text-[#111214] mb-1">Target Deadline</label>
               <input
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white focus:outline-none"
+                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-xs text-[#111214] focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Target Audience</label>
+            <label className="block text-xs font-semibold text-[#111214] mb-1">Target Audience</label>
             <input
               type="text"
               value={targetAudience}
               onChange={(e) => setTargetAudience(e.target.value)}
               placeholder="e.g. Early-stage founders, indie developers"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none"
+              className="w-full rounded-xl border border-black/15 bg-white px-3.5 py-2 text-xs sm:text-sm text-[#111214] focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-black/10">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
+              className="rounded-full px-4 py-2 text-xs font-medium text-[#66686c] hover:text-[#111214]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={creating}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 hover:opacity-95 transition disabled:opacity-50"
+              className="creator-btn-primary px-5 py-2 text-xs"
             >
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {creating ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Plus className="h-4 w-4 text-white" />}
               <span>Create Project</span>
             </button>
           </div>

@@ -7,6 +7,8 @@ export interface IUser {
   email: string;
   passwordHash: string;
   creatorType: "YouTuber" | "Instagram Creator" | "Podcaster" | "Educator" | "Business Creator" | "Other";
+  specializations?: string[];
+  bio?: string;
   avatar?: string;
   createdAt: Date;
 }
@@ -21,6 +23,8 @@ const UserSchema = new Schema<IUser>(
       enum: ["YouTuber", "Instagram Creator", "Podcaster", "Educator", "Business Creator", "Other"],
       default: "YouTuber",
     },
+    specializations: [{ type: String }],
+    bio: { type: String, default: "", maxlength: 280 },
     avatar: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
   },
@@ -156,8 +160,15 @@ export interface IAsset {
   type: "video" | "image" | "audio" | "thumbnail" | "document";
   url: string;
   size: number; // bytes
+  mimeType?: string;
+  durationSeconds?: number;
+  thumbnail?: string;
+  description?: string;
+  transcript?: Array<{ start: number; end: number; text: string }>;
+  scenes?: Array<{ start: number; end: number; description: string }>;
   tags: string[];
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 const AssetSchema = new Schema<IAsset>(
@@ -172,17 +183,43 @@ const AssetSchema = new Schema<IAsset>(
     },
     url: { type: String, required: true },
     size: { type: Number, default: 0 },
+    mimeType: { type: String, default: "" },
+    durationSeconds: { type: Number },
+    thumbnail: { type: String, default: "" },
+    description: { type: String, default: "" },
+    transcript: [{ start: Number, end: Number, text: String }],
+    scenes: [{ start: Number, end: Number, description: String }],
     tags: [{ type: String }],
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
 
+// --- ASSET CHUNK MODEL (for chunked uploads in MongoDB) ---
+export interface IAssetChunk {
+  _id?: string;
+  assetId: string;
+  index: number;
+  data: Buffer;
+  createdAt: Date;
+}
+
+const AssetChunkSchema = new Schema<IAssetChunk>(
+  {
+    assetId: { type: String, required: true, index: true },
+    index: { type: Number, required: true },
+    data: { type: Buffer, required: true },
+    createdAt: { type: Date, default: Date.now },
+  }
+);
+AssetChunkSchema.index({ assetId: 1, index: 1 }, { unique: true });
+
 // --- CLIP MODEL ---
 export interface IClip {
   _id?: string;
   userId: string;
   projectId?: string;
+  assetId?: string;
   title: string;
   startTime: number; // seconds
   endTime: number; // seconds
@@ -191,7 +228,9 @@ export interface IClip {
   platform: "Instagram Reels" | "YouTube Shorts" | "TikTok" | "LinkedIn";
   reason: string;
   matchedScriptSection?: string;
-  status: "SUGGESTED" | "READY" | "EXPORTED";
+  confidence?: number;
+  origin?: string;
+  status: "SUGGESTED" | "APPROVED" | "REJECTED" | "READY" | "EXPORTED";
   createdAt: Date;
 }
 
@@ -199,6 +238,7 @@ const ClipSchema = new Schema<IClip>(
   {
     userId: { type: String, required: true, index: true },
     projectId: { type: String, default: "", index: true },
+    assetId: { type: String, default: "", index: true },
     title: { type: String, required: true },
     startTime: { type: Number, required: true },
     endTime: { type: Number, required: true },
@@ -211,9 +251,11 @@ const ClipSchema = new Schema<IClip>(
     },
     reason: { type: String, default: "" },
     matchedScriptSection: { type: String, default: "" },
+    confidence: { type: Number, default: 0.9 },
+    origin: { type: String, default: "ai" },
     status: {
       type: String,
-      enum: ["SUGGESTED", "READY", "EXPORTED"],
+      enum: ["SUGGESTED", "APPROVED", "REJECTED", "READY", "EXPORTED"],
       default: "SUGGESTED",
     },
     createdAt: { type: Date, default: Date.now },
@@ -318,6 +360,8 @@ export const Project: Model<IProject> = mongoose.models.Project || mongoose.mode
 export const Idea: Model<IIdea> = mongoose.models.Idea || mongoose.model<IIdea>("Idea", IdeaSchema);
 export const Script: Model<IScript> = mongoose.models.Script || mongoose.model<IScript>("Script", ScriptSchema);
 export const Asset: Model<IAsset> = mongoose.models.Asset || mongoose.model<IAsset>("Asset", AssetSchema);
+export const AssetChunk: Model<IAssetChunk> =
+  mongoose.models.AssetChunk || mongoose.model<IAssetChunk>("AssetChunk", AssetChunkSchema);
 export const Clip: Model<IClip> = mongoose.models.Clip || mongoose.model<IClip>("Clip", ClipSchema);
 export const RepurposedContent: Model<IRepurposedContent> =
   mongoose.models.RepurposedContent || mongoose.model<IRepurposedContent>("RepurposedContent", RepurposedContentSchema);

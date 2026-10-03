@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { IProject, IScript, IAsset, IClip, IRepurposedContent, IAnalytics } from "@/models";
 import { formatDate, formatDuration, estimateSpeakingTime } from "@/lib/utils";
+import { ClipCard } from "@/components/dashboard/ClipCard";
 
 export default function ProjectDetailsPage({
   params,
@@ -476,42 +477,68 @@ export default function ProjectDetailsPage({
       {activeTab === "clips" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Discovered Short-Form Clips ({clips.length})</h3>
+            <h3 className="text-sm font-bold text-[#111214]">Discovered Short-Form Clips ({clips.length})</h3>
             <Link
               href="/dashboard/video-intelligence"
-              className="text-xs text-cyan-400 hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-[#111214] hover:underline flex items-center gap-1"
             >
               <span>Discover New Clips with AI</span> <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
 
           {clips.length === 0 ? (
-            <div className="text-center py-16 rounded-2xl border border-dashed border-white/10">
-              <Play className="mx-auto h-8 w-8 text-slate-500" />
-              <p className="mt-2 text-xs text-slate-400">No clips discovered for this video yet.</p>
+            <div className="text-center py-16 rounded-3xl border border-dashed border-black/10 bg-white/40">
+              <Play className="mx-auto h-8 w-8 text-[#77797c]" />
+              <p className="mt-2 text-xs text-[#77797c]">No clips discovered for this video yet.</p>
+              <Link
+                href="/dashboard/video-intelligence"
+                className="btn-primary mt-3 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold"
+              >
+                Auto-generate with AI →
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {clips.map((clip) => (
-                <div
+                <ClipCard
                   key={clip._id}
-                  className="rounded-2xl border border-white/10 bg-[#0d121f]/90 p-5 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="rounded bg-indigo-500/20 text-cyan-300 px-2 py-0.5 text-[10px] font-mono">
-                      {formatDuration(clip.startTime)} → {formatDuration(clip.endTime)}
-                    </span>
-                    <span className="rounded bg-purple-500/20 text-purple-300 px-2 py-0.5 text-[10px]">
-                      {clip.platform}
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-bold text-white">{clip.title}</h4>
-                  <p className="text-xs text-slate-300 font-mono bg-black/40 p-2.5 rounded border border-white/5">
-                    &ldquo;{clip.hook}&rdquo;
-                  </p>
-                  <p className="text-[11px] text-slate-400">{clip.reason}</p>
-                </div>
+                  clip={clip}
+                  onUpdate={(updated) => {
+                    setClips((prev) =>
+                      prev.map((c) => (c._id === updated._id ? ({ ...c, ...updated } as IClip) : c))
+                    );
+                  }}
+                  onDelete={async (clipId) => {
+                    const res = await fetch(`/api/clips?id=${clipId}`, { method: "DELETE" });
+                    if (res.ok) {
+                      setClips((prev) => prev.filter((c) => c._id !== clipId));
+                    }
+                  }}
+                  onApprove={async (clipId) => {
+                    const res = await fetch("/api/clips", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: clipId, status: "APPROVED" }),
+                    });
+                    if (res.ok) {
+                      setClips((prev) =>
+                        prev.map((c) => (c._id === clipId ? { ...c, status: "APPROVED" } : c))
+                      );
+                    }
+                  }}
+                  onReject={async (clipId) => {
+                    const res = await fetch("/api/clips", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: clipId, status: "REJECTED" }),
+                    });
+                    if (res.ok) {
+                      setClips((prev) =>
+                        prev.map((c) => (c._id === clipId ? { ...c, status: "REJECTED" } : c))
+                      );
+                    }
+                  }}
+                />
               ))}
             </div>
           )}

@@ -8,6 +8,8 @@ export interface UserProfile {
   name: string;
   email: string;
   creatorType: string;
+  specializations?: string[];
+  bio?: string;
   avatar?: string;
   createdAt?: string;
 }
@@ -59,8 +61,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    let ignore = false;
+    async function init() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (ignore) return;
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+          if (data.system) {
+            setSystem(data.system);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch {
+        if (!ignore) setUser(null);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {

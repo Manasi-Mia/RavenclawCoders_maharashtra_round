@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
       const results = await repurposeContent({
         sourceText,
         sourceType: sourceType || "Script",
+        creatorType: user.creatorType,
+        specializations: user.specializations,
       });
 
       return NextResponse.json({ results });

@@ -5,27 +5,29 @@ import Link from "next/link";
 import {
   FileText,
   Clock,
+  Sparkles,
   Save,
   Check,
   Loader2,
-  Sparkles,
-  ArrowLeft,
   Wand2,
+  ArrowLeft,
   ChevronRight,
   Flame,
   MessageSquare,
-  Copy,
   Layers,
+  Copy,
 } from "lucide-react";
 import { IScript, IProject } from "@/models";
 import { estimateSpeakingTime, formatDate } from "@/lib/utils";
 
-export default function ScriptEditorWorkspace({
+export default function ScriptEditorPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
+
   const [script, setScript] = useState<IScript | null>(null);
   const [project, setProject] = useState<IProject | null>(null);
   const [content, setContent] = useState("");
@@ -33,14 +35,14 @@ export default function ScriptEditorWorkspace({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedStatus, setSavedStatus] = useState<"saved" | "saving" | "unsaved">("saved");
+
+  // Selection & AI Assistant state
+  const [selectedText, setSelectedText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiOutput, setAiOutput] = useState("");
-  const [selectedText, setSelectedText] = useState("");
   const [copied, setCopied] = useState(false);
-
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Fetch script
   useEffect(() => {
     fetch(`/api/scripts/${id}`)
       .then((r) => r.json())
@@ -60,7 +62,6 @@ export default function ScriptEditorWorkspace({
   // Autosave with debounce
   useEffect(() => {
     if (loading || !script) return;
-    setSavedStatus("unsaved");
 
     const timer = setTimeout(async () => {
       setSavedStatus("saving");
@@ -101,8 +102,8 @@ export default function ScriptEditorWorkspace({
     }
   };
 
-  // AI Assistant Action
-  const handleAiAction = async (action: string, instruction?: string) => {
+  // AI Script Doctor actions
+  const handleAiAction = async (action: string) => {
     setAiLoading(true);
     setAiOutput("");
 
@@ -112,9 +113,9 @@ export default function ScriptEditorWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          selectedText: selectedText || undefined,
+          text: selectedText || content,
           fullScript: content,
-          instruction,
+          platform: script?.platform || "YouTube",
         }),
       });
 
@@ -130,6 +131,7 @@ export default function ScriptEditorWorkspace({
   // Apply AI output directly into script
   const handleApplyAiOutput = () => {
     if (!aiOutput) return;
+    setSavedStatus("unsaved");
     if (selectedText && content.includes(selectedText)) {
       setContent((prev) => prev.replace(selectedText, aiOutput));
     } else {
@@ -143,7 +145,7 @@ export default function ScriptEditorWorkspace({
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#111214]" />
       </div>
     );
   }
@@ -151,9 +153,9 @@ export default function ScriptEditorWorkspace({
   if (!script) {
     return (
       <div className="text-center py-20">
-        <p className="text-sm text-slate-400">Script not found</p>
-        <Link href="/dashboard/scripts" className="mt-3 inline-block text-xs text-indigo-400">
-          ← Back to Scripts
+        <p className="text-sm text-[#66686c]">Script not found</p>
+        <Link href="/dashboard/ai-studio?tab=library" className="mt-3 inline-block text-xs text-[#111214] font-semibold underline">
+          ← Back to Library
         </Link>
       </div>
     );
@@ -162,53 +164,56 @@ export default function ScriptEditorWorkspace({
   return (
     <div className="space-y-6">
       {/* Top Bar with Breadcrumbs & Save Indicator */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/dashboard/scripts"
-            className="rounded-xl border border-white/10 p-2 text-slate-400 hover:bg-white/[0.06] hover:text-white transition"
+            href="/dashboard/ai-studio?tab=library"
+            className="rounded-xl border border-black/10 bg-white/70 p-2 text-[#66686c] hover:bg-white hover:text-[#111214] transition"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Link href="/dashboard/scripts" className="hover:text-slate-200">
+            <div className="flex items-center gap-2 text-xs text-[#66686c]">
+              <Link href="/dashboard/ai-studio?tab=library" className="hover:text-[#111214]">
                 Scripts
               </Link>
               <ChevronRight className="h-3 w-3" />
-              <span className="text-white truncate max-w-xs">{title}</span>
+              <span className="text-[#111214] font-medium truncate max-w-xs">{title}</span>
             </div>
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 bg-transparent text-lg font-bold text-white border-b border-transparent hover:border-white/20 focus:border-indigo-500 focus:outline-none w-full max-w-md"
+              onChange={(e) => {
+                setSavedStatus("unsaved");
+                setTitle(e.target.value);
+              }}
+              className="mt-1 bg-transparent text-lg font-bold text-[#111214] border-b border-transparent hover:border-black/20 focus:border-black focus:outline-none w-full max-w-md"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Autosave Status */}
-          <span className="text-[11px] font-mono flex items-center gap-1.5 text-slate-400">
+          <span className="text-[11px] font-mono flex items-center gap-1.5 text-[#66686c]">
             {savedStatus === "saving" ? (
               <>
-                <Loader2 className="h-3 w-3 animate-spin text-purple-400" /> Saving to MongoDB...
+                <Loader2 className="h-3 w-3 animate-spin text-[#111214]" /> Saving...
               </>
             ) : savedStatus === "saved" ? (
               <>
-                <Check className="h-3 w-3 text-emerald-400" /> Saved to cloud
+                <Check className="h-3 w-3 text-emerald-600" /> Saved
               </>
             ) : (
-              <span className="text-amber-400">● Unsaved edits</span>
+              <span className="text-amber-700 font-semibold">● Unsaved edits</span>
             )}
           </span>
 
           <button
             onClick={handleManualSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.05] border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-white/[0.08] transition"
+            className="creator-btn-primary px-3.5 py-1.5 text-xs"
           >
-            <Save className="h-3.5 w-3.5" /> Save
+            <Save className="h-3.5 w-3.5 text-white" /> Save
           </button>
         </div>
       </div>
@@ -217,45 +222,45 @@ export default function ScriptEditorWorkspace({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Side: Project Information & Pacing (Col 3) */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-[#0d121f]/90 p-5 space-y-4 shadow-xl">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/[0.08] pb-2.5">
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-5 space-y-4 shadow-sm backdrop-blur-md">
+            <h3 className="text-xs font-bold text-[#111214] uppercase tracking-wider border-b border-black/10 pb-2.5">
               Project Context
             </h3>
 
             {project ? (
               <div className="space-y-3 text-xs">
                 <div>
-                  <span className="text-slate-400">Linked Project:</span>
+                  <span className="text-[#66686c]">Linked Project:</span>
                   <Link
                     href={`/dashboard/projects/${project._id}`}
-                    className="block font-semibold text-cyan-300 hover:underline mt-0.5 truncate"
+                    className="block font-semibold text-[#111214] hover:underline mt-0.5 truncate"
                   >
                     {project.title}
                   </Link>
                 </div>
                 <div>
-                  <span className="text-slate-400">Platform:</span>
-                  <p className="font-semibold text-white">{project.platform}</p>
+                  <span className="text-[#66686c]">Platform:</span>
+                  <p className="font-semibold text-[#111214]">{project.platform}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400">Status:</span>
-                  <span className="inline-block rounded bg-indigo-500/20 text-indigo-300 px-2 py-0.5 font-mono text-[10px] mt-0.5">
+                  <span className="text-[#66686c]">Status:</span>
+                  <span className="inline-block rounded-full bg-black/5 text-[#111214] border border-black/10 px-2 py-0.5 font-mono text-[10px] mt-0.5 font-medium">
                     {project.status}
                   </span>
                 </div>
                 {project.deadline && (
                   <div>
-                    <span className="text-slate-400">Target Deadline:</span>
-                    <p className="font-semibold text-white">{formatDate(project.deadline)}</p>
+                    <span className="text-[#66686c]">Target Deadline:</span>
+                    <p className="font-semibold text-[#111214]">{formatDate(project.deadline)}</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-xs text-slate-400 space-y-2">
+              <div className="text-xs text-[#66686c] space-y-2">
                 <p>Standalone script (not linked to a project).</p>
                 <div className="pt-2">
-                  <span className="text-slate-400 block mb-1">Platform:</span>
-                  <span className="rounded bg-indigo-500/20 text-indigo-300 px-2 py-0.5 font-mono text-[10px]">
+                  <span className="text-[#66686c] block mb-1">Platform:</span>
+                  <span className="rounded-full bg-black/5 text-[#111214] border border-black/10 px-2 py-0.5 font-mono text-[10px] font-medium">
                     {script.platform}
                   </span>
                 </div>
@@ -264,42 +269,45 @@ export default function ScriptEditorWorkspace({
           </div>
 
           {/* Speaking Pacing Meter */}
-          <div className="rounded-2xl border border-white/10 bg-[#0d121f]/90 p-5 space-y-3 shadow-xl">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-white/[0.08] pb-2.5 flex items-center justify-between">
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-5 space-y-3 shadow-sm backdrop-blur-md">
+            <h3 className="text-xs font-bold text-[#111214] uppercase tracking-wider border-b border-black/10 pb-2.5 flex items-center justify-between">
               <span>Pacing & Duration</span>
-              <Clock className="h-3.5 w-3.5 text-cyan-400" />
+              <Clock className="h-3.5 w-3.5 text-[#111214]" />
             </h3>
 
             <div className="space-y-3">
               <div>
-                <span className="text-[11px] text-slate-400">Word Count</span>
-                <p className="text-xl font-extrabold text-white">{stats.words}</p>
+                <span className="text-[11px] text-[#66686c]">Word Count</span>
+                <p className="text-xl font-extrabold text-[#111214]">{stats.words}</p>
               </div>
 
               <div>
-                <span className="text-[11px] text-slate-400">Estimated Speaking Time</span>
-                <p className="text-xl font-extrabold text-cyan-400">{stats.formatted}</p>
-                <span className="text-[10px] text-slate-500 font-mono">Based on 130 WPM natural delivery</span>
+                <span className="text-[11px] text-[#66686c]">Estimated Speaking Time</span>
+                <p className="text-xl font-extrabold text-[#111214]">{stats.formatted}</p>
+                <span className="text-[10px] text-[#8a8b8e] font-mono">Based on 130 WPM natural delivery</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Center: Large Editable Script Editor (Col 6) */}
-        <div className="lg:col-span-6 rounded-2xl border border-white/10 bg-[#0d121f]/90 p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 text-xs text-slate-400">
-            <span className="font-semibold text-white flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-400" />
+        <div className="lg:col-span-6 rounded-2xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur-md space-y-4">
+          <div className="flex items-center justify-between border-b border-black/10 pb-3 text-xs text-[#66686c]">
+            <span className="font-semibold text-[#111214] flex items-center gap-2">
+              <FileText className="h-4 w-4 text-[#111214]" />
               Script Canvas
             </span>
-            <span className="text-[11px] font-mono text-slate-400">Autosaves on edit</span>
+            <span className="text-[11px] font-mono text-[#8a8b8e]">Autosaves on edit</span>
           </div>
 
           <textarea
             ref={textareaRef}
             rows={22}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setSavedStatus("unsaved");
+              setContent(e.target.value);
+            }}
             onSelect={(e) => {
               const target = e.target as HTMLTextAreaElement;
               const sel = target.value.substring(target.selectionStart, target.selectionEnd);
@@ -308,34 +316,34 @@ export default function ScriptEditorWorkspace({
               }
             }}
             placeholder="Type your script here with scene cues like [SCENE START], HOOK:, INTRODUCTION:, [CALL TO ACTION]..."
-            className="w-full bg-transparent font-mono text-xs sm:text-sm text-slate-100 leading-relaxed focus:outline-none resize-y min-h-[500px]"
+            className="w-full bg-transparent font-mono text-xs sm:text-sm text-[#111214] leading-relaxed focus:outline-none resize-y min-h-[500px]"
           />
         </div>
 
         {/* Right Side: AI Assistant Panel (Col 3) */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-[#0d121f]/90 p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Wand2 className="h-4 w-4 text-purple-400" /> AI Script Doctor
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-5 space-y-4 shadow-sm backdrop-blur-md">
+            <div className="flex items-center justify-between border-b border-black/10 pb-3">
+              <h3 className="text-xs font-bold text-[#111214] uppercase tracking-wider flex items-center gap-1.5">
+                <Wand2 className="h-4 w-4 text-[#111214]" /> AI Script Doctor
               </h3>
-              <span className="rounded bg-indigo-500/20 text-cyan-300 px-1.5 py-0.5 text-[9px] font-mono">
+              <span className="rounded-full bg-black/5 text-[#111214] border border-black/10 px-2 py-0.5 text-[9px] font-mono">
                 Gemini
               </span>
             </div>
 
-            <p className="text-[11px] text-slate-400 leading-normal">
+            <p className="text-[11px] text-[#66686c] leading-normal">
               Select any section of text or click an action below to improve the full script:
             </p>
 
             <div className="space-y-1.5">
               {[
-                { action: "improve_hook", label: "Improve Hook", icon: Flame, color: "text-amber-400" },
-                { action: "more_engaging", label: "Make More Engaging", icon: Sparkles, color: "text-purple-400" },
-                { action: "make_shorter", label: "Make Shorter (Cut Filler)", icon: Clock, color: "text-cyan-400" },
-                { action: "simplify", label: "Simplify Complex Words", icon: FileText, color: "text-blue-400" },
-                { action: "add_cta", label: "Add Strong CTA", icon: MessageSquare, color: "text-emerald-400" },
-                { action: "generate_transition", label: "Generate Scene Transition", icon: Layers, color: "text-pink-400" },
+                { action: "improve_hook", label: "Improve Hook", icon: Flame },
+                { action: "more_engaging", label: "Make More Engaging", icon: Sparkles },
+                { action: "make_shorter", label: "Make Shorter (Cut Filler)", icon: Clock },
+                { action: "simplify", label: "Simplify Complex Words", icon: FileText },
+                { action: "add_cta", label: "Add Strong CTA", icon: MessageSquare },
+                { action: "generate_transition", label: "Generate Scene Transition", icon: Layers },
               ].map((btn) => {
                 const Icon = btn.icon;
                 return (
@@ -344,13 +352,13 @@ export default function ScriptEditorWorkspace({
                     type="button"
                     onClick={() => handleAiAction(btn.action)}
                     disabled={aiLoading}
-                    className="w-full flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-2.5 text-xs text-slate-200 hover:border-indigo-500/40 hover:bg-white/[0.06] transition disabled:opacity-50 text-left"
+                    className="w-full flex items-center justify-between rounded-xl border border-black/10 bg-white/60 p-2.5 text-xs font-medium text-[#111214] hover:bg-white transition disabled:opacity-50 text-left shadow-xs"
                   >
                     <span className="flex items-center gap-2">
-                      <Icon className={`h-3.5 w-3.5 ${btn.color}`} />
+                      <Icon className="h-3.5 w-3.5 text-[#111214]" />
                       <span>{btn.label}</span>
                     </span>
-                    <ChevronRight className="h-3 w-3 text-slate-500" />
+                    <ChevronRight className="h-3 w-3 text-[#8a8b8e]" />
                   </button>
                 );
               })}
@@ -358,10 +366,10 @@ export default function ScriptEditorWorkspace({
 
             {/* AI Output Window */}
             {(aiLoading || aiOutput) && (
-              <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/30 p-3.5 space-y-2.5">
-                <div className="flex items-center justify-between text-xs text-cyan-300 font-semibold">
+              <div className="rounded-2xl border border-black/10 bg-white/90 p-3.5 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between text-xs text-[#111214] font-semibold">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <Sparkles className="h-3.5 w-3.5 text-[#111214]" />
                     {aiLoading ? "Doctoring Script..." : "AI Revision"}
                   </span>
                   {aiOutput && (
@@ -371,27 +379,27 @@ export default function ScriptEditorWorkspace({
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}
-                      className="text-slate-400 hover:text-white"
+                      className="text-[#66686c] hover:text-[#111214]"
                       title="Copy"
                     >
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                   )}
                 </div>
 
                 {aiLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-slate-300 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                  <div className="flex items-center gap-2 text-xs text-[#66686c] py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#111214]" />
                     <span>Analyzing dialogue and audience retention...</span>
                   </div>
                 ) : (
                   <>
-                    <p className="font-mono text-xs text-slate-200 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto bg-black/40 p-2.5 rounded border border-white/5">
+                    <p className="font-mono text-xs text-[#111214] leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto bg-black/5 p-2.5 rounded-xl border border-black/10">
                       {aiOutput}
                     </p>
                     <button
                       onClick={handleApplyAiOutput}
-                      className="w-full rounded-lg bg-indigo-600 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition"
+                      className="w-full creator-btn-primary py-1.5 text-xs"
                     >
                       Apply Revision into Editor
                     </button>
