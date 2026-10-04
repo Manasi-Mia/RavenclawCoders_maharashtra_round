@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { IAsset, IClip, IScript } from "@/models";
 import { formatDuration } from "@/lib/utils";
+import { AIErrorAlert } from "@/components/ui/AIErrorAlert";
 import { ClipCard } from "@/components/dashboard/ClipCard";
 import { uploadInChunks } from "@/lib/upload-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -113,6 +114,7 @@ function StudioContent() {
   // Regeneration state
   const [regeneratingHook, setRegeneratingHook] = useState(false);
   const [regeneratingCaption, setRegeneratingCaption] = useState(false);
+  const [inspectorAiError, setInspectorAiError] = useState<{ message: string; rawError: string } | null>(null);
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
@@ -880,6 +882,7 @@ function StudioContent() {
   // Regenerate Hook / Caption via Gemini
   const handleRegenerateHook = async () => {
     setRegeneratingHook(true);
+    setInspectorAiError(null);
     try {
       const res = await fetch("/api/clips/regenerate", {
         method: "POST",
@@ -892,15 +895,20 @@ function StudioContent() {
         }),
       });
       const data = await res.json();
-      if (data.text) {
-        setInspectorHook(data.text);
-        setFieldEdited((prev) => ({ ...prev, hook: false }));
-        pushHistory({ hook: data.text });
-        toast.success("Hook regenerated!");
+      if (!res.ok || !data.text) {
+        throw new Error(data.error || "Failed to regenerate hook");
       }
+      setInspectorHook(data.text);
+      setFieldEdited((prev) => ({ ...prev, hook: false }));
+      pushHistory({ hook: data.text });
+      toast.success("Hook regenerated!");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to regenerate hook";
-      toast.error(msg);
+      setInspectorAiError({
+        message: "The AI model is unavailable right now, please try again",
+        rawError: msg,
+      });
+      toast.error("The AI model is unavailable right now, please try again", msg);
     } finally {
       setRegeneratingHook(false);
     }
@@ -908,6 +916,7 @@ function StudioContent() {
 
   const handleRegenerateCaption = async () => {
     setRegeneratingCaption(true);
+    setInspectorAiError(null);
     try {
       const res = await fetch("/api/clips/regenerate", {
         method: "POST",
@@ -920,15 +929,20 @@ function StudioContent() {
         }),
       });
       const data = await res.json();
-      if (data.text) {
-        setInspectorCaption(data.text);
-        setFieldEdited((prev) => ({ ...prev, caption: false }));
-        pushHistory({ caption: data.text });
-        toast.success("Caption regenerated!");
+      if (!res.ok || !data.text) {
+        throw new Error(data.error || "Failed to regenerate caption");
       }
+      setInspectorCaption(data.text);
+      setFieldEdited((prev) => ({ ...prev, caption: false }));
+      pushHistory({ caption: data.text });
+      toast.success("Caption regenerated!");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to regenerate caption";
-      toast.error(msg);
+      setInspectorAiError({
+        message: "The AI model is unavailable right now, please try again",
+        rawError: msg,
+      });
+      toast.error("The AI model is unavailable right now, please try again", msg);
     } finally {
       setRegeneratingCaption(false);
     }
@@ -2209,6 +2223,15 @@ function StudioContent() {
                           </select>
                         </div>
                       </div>
+
+                      {/* AI Error Alert if regeneration failed */}
+                      {inspectorAiError && (
+                        <AIErrorAlert
+                          message={inspectorAiError.message}
+                          rawError={inspectorAiError.rawError}
+                          onDismiss={() => setInspectorAiError(null)}
+                        />
+                      )}
 
                       {/* Hook with Gemini Regenerate */}
                       <div>

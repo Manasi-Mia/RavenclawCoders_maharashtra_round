@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { Asset, AssetChunk } from "@/models";
 import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateWithFallback } from "@/lib/gemini-model";
 import { analyzeTranscriptForClips } from "@/lib/gemini";
 import os from "os";
 import path from "path";
@@ -116,14 +117,8 @@ export async function POST(req: NextRequest) {
           throw new Error("Gemini Files API could not process this video format.");
         }
 
-        // Call gemini-2.5-flash
+        // Call Gemini model with fallback
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.5-flash",
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        });
 
         const prompt = `You are an elite short-form video editor and creator retention analyst.
 Analyze this creator video footage (both audio dialogue and visual scenes) and extract high-performing short-form clips.
@@ -167,15 +162,23 @@ Return ONLY valid JSON in this exact shape:
   ]
 }`;
 
-        const geminiRes = await model.generateContent([
-          {
-            fileData: {
-              mimeType: uploadResult.file.mimeType,
-              fileUri: uploadResult.file.uri,
+        const geminiRes = await generateWithFallback(
+          genAI,
+          [
+            {
+              fileData: {
+                mimeType: uploadResult.file.mimeType,
+                fileUri: uploadResult.file.uri,
+              },
             },
-          },
-          prompt,
-        ]);
+            prompt,
+          ],
+          {
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
+          }
+        );
 
         const rawText = geminiRes.response.text();
         const parsed = JSON.parse(rawText);

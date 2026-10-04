@@ -18,12 +18,15 @@ import {
   Check,
   AlertCircle,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import { IAsset, IProject } from "@/models";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { uploadInChunks } from "@/lib/upload-client";
+import { useToast } from "@/components/ui/Toast";
+import { AIErrorAlert } from "@/components/ui/AIErrorAlert";
 
 interface UploadingFile {
   id: string;
@@ -54,6 +57,7 @@ const ALLOWED_MIME_TYPES = new Set([
 
 export default function AssetManagementPage() {
   const { system } = useAuth();
+  const toast = useToast();
   const [assets, setAssets] = useState<IAsset[]>([]);
   const [projects, setProjects] = useState<IProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +77,8 @@ export default function AssetManagementPage() {
   const [previewAsset, setPreviewAsset] = useState<IAsset | null>(null);
   const [newTagInput, setNewTagInput] = useState<string>("");
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [assetsAiError, setAssetsAiError] = useState<{ message: string; rawError: string } | null>(null);
+  const [isAutoTagging, setIsAutoTagging] = useState(false);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -201,13 +207,25 @@ export default function AssetManagementPage() {
               : "document",
           }),
         });
+        const tagData = await tagRes.json();
         if (tagRes.ok) {
-          const tagData = await tagRes.json();
           tags = tagData.tags || [];
           description = tagData.description || "";
+        } else {
+          const err = tagData.error || "Failed to generate AI tags";
+          setAssetsAiError({
+            message: "The AI model is unavailable right now, please try again",
+            rawError: err,
+          });
+          toast.error("The AI model is unavailable right now, please try again", err);
         }
-      } catch {
-        // non-blocking
+      } catch (e) {
+        const err = e instanceof Error ? e.message : "Failed to generate AI tags";
+        setAssetsAiError({
+          message: "The AI model is unavailable right now, please try again",
+          rawError: err,
+        });
+        toast.error("The AI model is unavailable right now, please try again", err);
       }
 
       // Step 2: Upload in chunks via shared client
@@ -335,6 +353,49 @@ export default function AssetManagementPage() {
     }
   };
 
+  const handleAutoTagAsset = async (asset: IAsset) => {
+    setIsAutoTagging(true);
+    setAssetsAiError(null);
+    try {
+      const res = await fetch("/api/assets/tag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: asset.name,
+          mimeType: asset.mimeType,
+          type: asset.type,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate AI tags");
+      }
+      const newTags = Array.from(new Set([...(asset.tags || []), ...(data.tags || [])]));
+      const newDesc = data.description || asset.description;
+      await fetch("/api/assets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: asset._id, tags: newTags, description: newDesc }),
+      });
+      setAssets((prev) =>
+        prev.map((a) => (a._id === asset._id ? { ...a, tags: newTags, description: newDesc } : a))
+      );
+      if (previewAsset?._id === asset._id) {
+        setPreviewAsset({ ...previewAsset, tags: newTags, description: newDesc } as IAsset);
+      }
+      toast.success("AI tags generated!");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to auto-tag asset";
+      setAssetsAiError({
+        message: "The AI model is unavailable right now, please try again",
+        rawError: msg,
+      });
+      toast.error("The AI model is unavailable right now, please try again", msg);
+    } finally {
+      setIsAutoTagging(false);
+    }
+  };
+
   const handleAssignProject = async (assetId: string, projectId: string) => {
     const res = await fetch("/api/assets", {
       method: "PUT",
@@ -444,6 +505,15 @@ export default function AssetManagementPage() {
           onChange={(e) => handleFilesSelected(e.target.files)}
         />
       </div>
+
+      {/* AI Error Alert */}
+      {assetsAiError && (
+        <AIErrorAlert
+          message={assetsAiError.message}
+          rawError={assetsAiError.rawError}
+          onDismiss={() => setAssetsAiError(null)}
+        />
+      )}
 
       {/* Drag & Drop Upload Zone */}
       <div
@@ -895,10 +965,21 @@ export default function AssetManagementPage() {
 
             {/* Tags Manager (Editable Chips) */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-[#111214] flex items-center gap-1.5">
-                <Tag className="h-3.5 w-3.5 text-[#111214]" />
-                Tags ({previewAsset.tags?.length || 0})
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#111214] flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-[#111214]" />
+                  Tags ({previewAsset.tags?.length || 0})
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleAutoTagAsset(previewAsset)}
+                  disabled={isAutoTagging}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles className={`h-3 w-3 ${isAutoTagging ? "animate-spin" : ""}`} />
+                  {isAutoTagging ? "Tagging..." : "Auto-tag with AI"}
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {(previewAsset.tags || []).map((t) => (
                   <span

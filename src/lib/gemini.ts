@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateWithFallback } from "@/lib/gemini-model";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
@@ -66,18 +67,14 @@ Return ONLY a JSON array with objects in this exact shape:
 `;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch (err) {
-      console.warn("Gemini API call failed, falling back to smart generative fallback:", err);
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text();
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleanJson);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
     }
+    throw new Error("Invalid ideas response format from Gemini model");
   }
 
   // Intelligent fallback ideas based on input topic
@@ -245,32 +242,27 @@ For EACH of the 4 variants provide:
 Return ONLY a valid JSON array of 4 objects.`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((v) => ({
-          angle: (v.angle || singleAngle || "Story-driven") as ScriptAngle,
-          title: v.title || `Mastering ${params.topic}`,
-          script: v.script || "",
-          hooks: Array.isArray(v.hooks) ? v.hooks : [],
-          titles: Array.isArray(v.titles) ? v.titles : [],
-          captions: Array.isArray(v.captions) ? v.captions : [],
-          hashtags: Array.isArray(v.hashtags) ? v.hashtags : ["#creator", "#growth"],
-          wordCount: v.wordCount || v.script?.split(/\s+/).length || 260,
-          estimatedDuration: v.estimatedDuration || "2m 30s",
-        }));
-      }
-    } catch (err) {
-      console.warn("Gemini script generation fallback:", err);
+    const result = await generateWithFallback(client, prompt, {
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+    const text = result.response.text().trim();
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((v) => ({
+        angle: (v.angle || singleAngle || "Story-driven") as ScriptAngle,
+        title: v.title || `Mastering ${params.topic}`,
+        script: v.script || "",
+        hooks: Array.isArray(v.hooks) ? v.hooks : [],
+        titles: Array.isArray(v.titles) ? v.titles : [],
+        captions: Array.isArray(v.captions) ? v.captions : [],
+        hashtags: Array.isArray(v.hashtags) ? v.hashtags : ["#creator", "#growth"],
+        wordCount: v.wordCount || v.script?.split(/\s+/).length || 260,
+        estimatedDuration: v.estimatedDuration || "2m 30s",
+      }));
     }
+    throw new Error("Invalid script variants response format from Gemini model");
   }
 
   return getFallbackScriptVariants(params);
@@ -501,15 +493,11 @@ Include diverse angles: curiosity gap, bold statement, contrarian take, numbers/
 Return ONLY a JSON array of strings: ["Hook 1", "Hook 2", ...]`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {
-      console.warn("Hooks generation fallback:", e);
-    }
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed;
+    throw new Error("Invalid hooks response format from Gemini model");
   }
 
   return [
@@ -560,14 +548,10 @@ Maintain natural spoken dialogue, high audience retention, and clear visual/audi
 Return ONLY the revised script text without meta commentary.`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-      if (text) return text;
-    } catch (e) {
-      console.warn("Script assist fallback:", e);
-    }
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().trim();
+    if (text) return text;
+    throw new Error("Empty response received from Gemini script assistant");
   }
 
   // Fallback modifications
@@ -686,17 +670,13 @@ Return ONLY a valid JSON object matching this exact structure:
 }`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
-      if (parsed.instagram && parsed.linkedin && parsed.youtube) {
-        return parsed;
-      }
-    } catch (e) {
-      console.warn("Repurpose fallback:", e);
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(text);
+    if (parsed.instagram && parsed.linkedin && parsed.youtube) {
+      return parsed;
     }
+    throw new Error("Invalid repurposed content format from Gemini model");
   }
 
   // High quality fallback
@@ -811,17 +791,13 @@ Return ONLY a JSON array of objects:
 ]`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch (e) {
-      console.warn("Clip analysis fallback:", e);
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
     }
+    throw new Error("Invalid clip analysis response format from Gemini model");
   }
 
   // Intelligent fallback candidates
@@ -895,17 +871,13 @@ Return ONLY a valid JSON object matching:
 }`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(text);
-      if (parsed.overview && Array.isArray(parsed.recommendedExperiments)) {
-        return parsed;
-      }
-    } catch (e) {
-      console.warn("Analytics intelligence fallback:", e);
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(text);
+    if (parsed.overview && Array.isArray(parsed.recommendedExperiments)) {
+      return parsed;
     }
+    throw new Error("Invalid analytics intelligence response from Gemini model");
   }
 
   return {
@@ -963,13 +935,10 @@ User says: "${message}"
 Give a direct, energetic, actionable response tailored to high-performing digital creators. Avoid corporate fluff. Format key takeaways with bullet points if helpful.`;
 
   if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent(prompt);
-      return result.response.text().trim();
-    } catch (e) {
-      console.warn("Assistant chat fallback:", e);
-    }
+    const result = await generateWithFallback(client, prompt);
+    const text = result.response.text().trim();
+    if (text) return text;
+    throw new Error("Empty chat response received from Gemini model");
   }
 
   // Smart conversational assistant fallback

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateWithFallback } from "@/lib/gemini-model";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = "";
     if (field === "hook") {
@@ -53,7 +53,7 @@ Guidelines:
 - Return ONLY the caption text without meta commentary.`;
     }
 
-    const result = await model.generateContent(prompt);
+    const result = await generateWithFallback(genAI, prompt);
     const text = result.response.text().trim().replace(/^["']|["']$/g, "");
 
     return NextResponse.json({ text });
