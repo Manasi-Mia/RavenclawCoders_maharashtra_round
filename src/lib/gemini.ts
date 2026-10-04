@@ -173,6 +173,14 @@ export interface GeneratedScriptResponse {
   hashtags: string[];
 }
 
+export class BadAiResponseError extends Error {
+  readonly code = "AI_BAD_RESPONSE";
+  constructor(message = "The AI returned an unreadable response. Please try again.") {
+    super(message);
+    this.name = "BadAiResponseError";
+  }
+}
+
 export async function generateScriptVariants(
   params: GenerateScriptParams
 ): Promise<ScriptVariant[]> {
@@ -249,24 +257,126 @@ Return ONLY a valid JSON array of 4 objects.`;
     const result = await generateWithFallback(client, prompt, {
       generationConfig: {
         responseMimeType: "application/json",
+        maxOutputTokens: 8192,
       },
     });
     const text = result.response.text().trim();
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((v) => ({
-        angle: (v.angle || singleAngle || "Story-driven") as ScriptAngle,
-        title: v.title || `Mastering ${params.topic}`,
-        script: v.script || "",
-        hooks: Array.isArray(v.hooks) ? v.hooks : [],
-        titles: Array.isArray(v.titles) ? v.titles : [],
-        captions: Array.isArray(v.captions) ? v.captions : [],
-        hashtags: Array.isArray(v.hashtags) ? v.hashtags : ["#creator", "#growth"],
-        wordCount: v.wordCount || v.script?.split(/\s+/).length || 260,
-        estimatedDuration: v.estimatedDuration || "2m 30s",
-      }));
+    if (!text) {
+      throw new BadAiResponseError("Empty AI response received.");
     }
-    throw new Error("Invalid script variants response format from Gemini model");
+
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // 1. Strip ```json code fences
+      const cleaned = text
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // 2. Extract first [...] block
+        const arrayMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+          try {
+            parsed = JSON.parse(arrayMatch[0]);
+          } catch {
+            // continue
+          }
+        }
+        // 3. Or extract single {...} block wrapped in an array
+        if (!parsed) {
+          const objectMatch = text.match(/\{[\s\S]*\}/);
+          if (objectMatch) {
+            try {
+              const singleObj = JSON.parse(objectMatch[0]);
+              parsed = [singleObj];
+            } catch {
+              // continue
+            }
+          }
+        }
+      }
+    }
+
+    if (!parsed) {
+      throw new BadAiResponseError();
+    }
+
+    const rawList: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : typeof parsed === "object"
+      ? [parsed]
+      : [];
+
+    const validVariants: ScriptVariant[] = [];
+    for (const v of rawList) {
+      if (!v || typeof v !== "object") continue;
+      const item = v as Record<string, unknown>;
+      const scriptStr = typeof item.script === "string" ? item.script.trim() : "";
+      if (!scriptStr) continue; // drop variants with an empty script
+
+      const titleStr =
+        typeof item.title === "string" && item.title.trim()
+          ? item.title.trim()
+          : `Mastering ${params.topic}`;
+
+      const hooks = Array.isArray(item.hooks)
+        ? item.hooks.filter((h): h is string => typeof h === "string" && h.trim().length > 0)
+        : [];
+
+      const titles = Array.isArray(item.titles)
+        ? item.titles.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+        : [];
+
+      const captions = Array.isArray(item.captions)
+        ? item.captions.filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+        : [];
+
+      const hashtags = Array.isArray(item.hashtags)
+        ? item.hashtags.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+        : ["#creator", "#growth"];
+
+      const wordCount =
+        typeof item.wordCount === "number" && item.wordCount > 0
+          ? item.wordCount
+          : scriptStr.split(/\s+/).filter(Boolean).length;
+
+      const estimatedDuration =
+        typeof item.estimatedDuration === "string" && item.estimatedDuration.trim()
+          ? item.estimatedDuration.trim()
+          : "2m 30s";
+
+      const angle = (typeof item.angle === "string" && item.angle
+        ? item.angle
+        : singleAngle || "Story-driven") as ScriptAngle;
+
+      validVariants.push({
+        angle,
+        title: titleStr,
+        script: scriptStr,
+        hooks,
+        titles,
+        captions,
+        hashtags: hashtags.length > 0 ? hashtags : ["#creator", "#growth"],
+        wordCount,
+        estimatedDuration,
+      });
+    }
+
+    if (validVariants.length === 0) {
+      throw new BadAiResponseError();
+    }
+
+    // For single-variant regeneration keep the existing behavior (one object)
+    if (singleAngle) {
+      return [validVariants[0]];
+    }
+
+    // If the full request returns fewer than 4 valid variants, return what is valid (at least 1) instead of failing
+    return validVariants;
   }
 
   return getFallbackScriptVariants(params);

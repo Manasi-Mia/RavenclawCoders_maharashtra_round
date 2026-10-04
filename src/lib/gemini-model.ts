@@ -46,6 +46,19 @@ function isModelNotFoundError(err: unknown): boolean {
   return false;
 }
 
+export function isQuotaError(err: unknown): boolean {
+  if (!err) return false;
+  const status = (err as { status?: number })?.status;
+  if (status === 429) return true;
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes("429")) return true;
+  if (msg.includes("quota")) return true;
+  if (msg.includes("rate limit") || msg.includes("rate_limit")) return true;
+  if (msg.includes("resource_exhausted") || msg.includes("resource exhausted")) return true;
+  if (msg.includes("too many requests")) return true;
+  return false;
+}
+
 function getCandidateModels(): string[] {
   const envModel = process.env.GEMINI_MODEL?.trim();
   const list = envModel

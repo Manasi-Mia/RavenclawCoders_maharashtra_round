@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,10 +22,14 @@ import {
   ArrowRight,
   Filter,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { IProject, IScript } from "@/models";
 import { ScriptVariant, ScriptAngle } from "@/lib/gemini";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/Toast";
+import { AIErrorAlert } from "@/components/ui/AIErrorAlert";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const ANGLE_CONFIG: Record<
   ScriptAngle,
@@ -69,6 +73,7 @@ function AIStudioContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const toast = useToast();
 
   // Active top tab: "generate" or "library"
   const tabParam = searchParams.get("tab");
@@ -91,6 +96,13 @@ function AIStudioContent() {
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
   const [regeneratingAngle, setRegeneratingAngle] = useState<string | null>(null);
 
+  // Error states
+  const [error, setError] = useState<{ message: string; code?: string; rawError?: string } | null>(null);
+  const [singleVariantError, setSingleVariantError] = useState<{
+    angle: string;
+    error: { message: string; code?: string; rawError?: string };
+  } | null>(null);
+
   // UI state
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
@@ -99,9 +111,11 @@ function AIStudioContent() {
   // Library tab state
   const [savedScripts, setSavedScripts] = useState<IScript[]>([]);
   const [loadingScripts, setLoadingScripts] = useState(false);
+  const [scriptsError, setScriptsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Load Projects
   useEffect(() => {
@@ -123,13 +137,20 @@ function AIStudioContent() {
     let ignore = false;
     if (activeTab === "library") {
       fetch("/api/scripts")
-        .then((r) => r.json())
-        .then((json) => {
-          if (!ignore && json.scripts) {
-            setSavedScripts(json.scripts);
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+          const json = await res.json();
+          if (!ignore) {
+            setSavedScripts(json.scripts || []);
+            setScriptsError(null);
           }
         })
-        .catch((e) => console.error("Failed to load scripts:", e))
+        .catch((e) => {
+          console.error("Failed to load scripts:", e);
+          if (!ignore) {
+            setScriptsError("Failed to load your scripts library. Please check your connection.");
+          }
+        })
         .finally(() => {
           if (!ignore) setLoadingScripts(false);
         });
@@ -139,18 +160,46 @@ function AIStudioContent() {
     };
   }, [activeTab]);
 
+  // Manual Retry for Library loading
+  const handleRetryLoadScripts = useCallback(() => {
+    setLoadingScripts(true);
+    setScriptsError(null);
+    fetch("/api/scripts")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+        const json = await res.json();
+        setSavedScripts(json.scripts || []);
+      })
+      .catch((e) => {
+        console.error("Failed to load scripts:", e);
+        setScriptsError("Failed to load your scripts library. Please check your connection.");
+      })
+      .finally(() => {
+        setLoadingScripts(false);
+      });
+  }, []);
+
   // Handle Full 4-Variant Generation
   const handleGenerateAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!topic.trim()) return;
+    if (generating || regeneratingAngle) return; // Prevent double submit
 
     setGenerating(true);
+    setError(null);
+    setSingleVariantError(null);
     setSavedSuccessMsg(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 90000); // 90-second client-side timeout
 
     try {
       const res = await fetch("/api/scripts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           targetAudience,
@@ -161,27 +210,73 @@ function AIStudioContent() {
         }),
       });
 
-      const json = await res.json();
-      if (res.ok && json.variants && json.variants.length > 0) {
-        setVariants(json.variants);
-        setSelectedVariantIdx(0);
+      let json: { error?: string; code?: string; details?: string; variants?: ScriptVariant[] } | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
       }
-    } catch (err) {
-      console.error("Error generating variants:", err);
+
+      if (!res.ok) {
+        const errMsg = json?.error || `Generation failed (Status ${res.status})`;
+        const errCode = json?.code || `HTTP_${res.status}`;
+        setError({
+          message: errMsg,
+          code: errCode,
+          rawError: json?.details || json?.error || `Server responded with status ${res.status}`,
+        });
+        return;
+      }
+
+      if (!json?.variants || json.variants.length === 0) {
+        setError({
+          message: "The AI returned no scripts. Please try again.",
+          code: "EMPTY_VARIANTS",
+        });
+        return;
+      }
+
+      setVariants(json.variants);
+      setSelectedVariantIdx(0);
+      setError(null);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError({
+          message: "This is taking too long. Please try again.",
+          code: "TIMEOUT",
+        });
+      } else {
+        console.error("Error generating variants:", err);
+        setError({
+          message: "Could not reach the server. Please check your connection and try again.",
+          code: "NETWORK_ERROR",
+          rawError: err instanceof Error ? err.message : String(err),
+        });
+      }
     } finally {
+      clearTimeout(timeoutId);
       setGenerating(false);
     }
   };
 
   // Handle Single Variant Regeneration
   const handleRegenerateSingleVariant = async (angle: ScriptAngle) => {
+    if (generating || regeneratingAngle) return; // Prevent double submit
+
     setRegeneratingAngle(angle);
+    setSingleVariantError(null);
     setSavedSuccessMsg(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 90000); // 90-second client-side timeout
 
     try {
       const res = await fetch("/api/scripts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           targetAudience,
@@ -193,16 +288,65 @@ function AIStudioContent() {
         }),
       });
 
-      const json = await res.json();
-      if (res.ok && json.variants && json.variants.length > 0) {
-        const freshVariant = json.variants[0];
-        setVariants((prev) =>
-          prev.map((v) => (v.angle === angle ? freshVariant : v))
-        );
+      let json: { error?: string; code?: string; details?: string; variants?: ScriptVariant[] } | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
       }
-    } catch (err) {
-      console.error("Error regenerating single variant:", err);
+
+      if (!res.ok) {
+        const errMsg = json?.error || `Regeneration failed (Status ${res.status})`;
+        const errCode = json?.code || `HTTP_${res.status}`;
+        setSingleVariantError({
+          angle,
+          error: {
+            message: errMsg,
+            code: errCode,
+            rawError: json?.details || json?.error || `Server responded with status ${res.status}`,
+          },
+        });
+        return;
+      }
+
+      if (!json?.variants || json.variants.length === 0) {
+        setSingleVariantError({
+          angle,
+          error: {
+            message: "The AI returned no scripts. Please try again.",
+            code: "EMPTY_VARIANTS",
+          },
+        });
+        return;
+      }
+
+      const freshVariant = json.variants[0];
+      setVariants((prev) =>
+        prev.map((v) => (v.angle === angle ? freshVariant : v))
+      );
+      setSingleVariantError(null);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setSingleVariantError({
+          angle,
+          error: {
+            message: "This is taking too long. Please try again.",
+            code: "TIMEOUT",
+          },
+        });
+      } else {
+        console.error("Error regenerating single variant:", err);
+        setSingleVariantError({
+          angle,
+          error: {
+            message: "Could not reach the server. Please check your connection and try again.",
+            code: "NETWORK_ERROR",
+            rawError: err instanceof Error ? err.message : String(err),
+          },
+        });
+      }
     } finally {
+      clearTimeout(timeoutId);
       setRegeneratingAngle(null);
     }
   };
@@ -259,35 +403,29 @@ function AIStudioContent() {
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.script?._id) {
+      let data: { error?: string; script?: { _id: string } } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (res.ok && data?.script?._id) {
+        toast.success("Saved to project library");
         setSavedSuccessMsg(`Saved "${currentVariant.angle}" to project library!`);
         setTimeout(() => setSavedSuccessMsg(null), 3500);
 
         if (openAfterSave) {
           router.push(`/dashboard/scripts/${data.script._id}`);
         }
+      } else {
+        toast.error(data?.error || "Failed to save script to project library");
       }
     } catch (err) {
       console.error("Save error:", err);
+      toast.error("Could not reach the server to save script.");
     } finally {
       setSavingScript(false);
-    }
-  };
-
-  // Handle Delete Script in Library
-  const handleDeleteScript = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this script?")) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/scripts/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setSavedScripts((prev) => prev.filter((s) => s._id !== id));
-      }
-    } catch (e) {
-      console.error("Delete script error:", e);
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -508,8 +646,8 @@ function AIStudioContent() {
 
                 <button
                   type="submit"
-                  disabled={generating}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-slate-800 transition disabled:opacity-50"
+                  disabled={generating || Boolean(regeneratingAngle)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {generating ? (
                     <>
@@ -528,6 +666,85 @@ function AIStudioContent() {
 
             {/* Right: 4 Variants Cards & Selected Variant Inspector */}
             <div className="lg:col-span-8 space-y-5">
+              {/* Main Generation Error Alert */}
+              {error && (
+                <AIErrorAlert
+                  title={
+                    error.code === "AI_QUOTA"
+                      ? "AI Limit Notice"
+                      : error.code === "UNAUTHORIZED"
+                      ? "Session Expired"
+                      : error.code === "TIMEOUT"
+                      ? "Request Timeout"
+                      : "Script Generation Notice"
+                  }
+                  message={error.message}
+                  rawError={error.rawError || (error.code ? `Error Code: ${error.code}` : undefined)}
+                  onDismiss={() => setError(null)}
+                  onRetry={() => handleGenerateAll()}
+                  action={
+                    error.code === "UNAUTHORIZED" ? (
+                      <Link
+                        href="/login"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        <span>Log in again</span>
+                      </Link>
+                    ) : undefined
+                  }
+                />
+              )}
+
+              {/* Loading Skeleton while generating */}
+              {generating && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-indigo-600 shrink-0" />
+                    <div>
+                      <p className="text-xs sm:text-sm font-bold text-slate-900">
+                        Generating 4 script variants... this can take up to 30-60 seconds
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Crafting Story-driven, Educational, Bold/contrarian, and Fast-paced listicle angles...
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Skeleton of 4 variant tabs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      { angle: "Story-driven", tag: "Narrative & Emotion" },
+                      { angle: "Educational / how-to", tag: "Actionable Framework" },
+                      { angle: "Bold / contrarian take", tag: "Pattern Interrupt" },
+                      { angle: "Fast-paced listicle", tag: "Rapid Retention" },
+                    ].map((item, i) => (
+                      <div
+                        key={i}
+                        className="rounded-xl border border-slate-200/80 bg-white/80 p-3 space-y-2.5 animate-pulse"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] text-transparent">
+                            {item.angle}
+                          </span>
+                          <div className="h-2 w-2 rounded-full bg-indigo-300 animate-ping" />
+                        </div>
+                        <div className="space-y-1.5 pt-1">
+                          <div className="h-3 w-full bg-slate-200 rounded" />
+                          <div className="h-3 w-4/5 bg-slate-200 rounded" />
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-mono pt-1">
+                          {item.tag}
+                        </p>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <div className="h-2.5 w-8 bg-slate-200 rounded" />
+                          <div className="h-2.5 w-12 bg-slate-200 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {variants.length === 0 && !generating ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
@@ -542,13 +759,14 @@ function AIStudioContent() {
                   </p>
                   <button
                     onClick={() => handleGenerateAll()}
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition"
+                    disabled={generating || Boolean(regeneratingAngle)}
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
                     <span>Quick-Generate with Sample Topic</span>
                   </button>
                 </div>
-              ) : (
+              ) : variants.length > 0 && (
                 <div className="space-y-5">
                   {/* 4 Angle Variant Selector Cards */}
                   <div>
@@ -569,6 +787,7 @@ function AIStudioContent() {
                         const config = ANGLE_CONFIG[v.angle] || ANGLE_CONFIG["Story-driven"];
                         const isSelected = selectedVariantIdx === idx;
                         const isRegenThis = regeneratingAngle === v.angle;
+                        const hasErrorThis = singleVariantError?.angle === v.angle;
 
                         return (
                           <div
@@ -587,9 +806,13 @@ function AIStudioContent() {
                                 >
                                   {v.angle}
                                 </span>
-                                {isRegenThis && (
+                                {isRegenThis ? (
                                   <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
-                                )}
+                                ) : hasErrorThis ? (
+                                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1 rounded">
+                                    Error
+                                  </span>
+                                ) : null}
                               </div>
                               <p className="text-xs font-semibold text-slate-900 line-clamp-2">
                                 {v.title}
@@ -612,6 +835,38 @@ function AIStudioContent() {
                   {/* Active Variant Inspector */}
                   {currentVariant && (
                     <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-md p-5 space-y-5 shadow-xs">
+                      {/* Single Variant Error Alert */}
+                      {singleVariantError && singleVariantError.angle === currentVariant.angle && (
+                        <AIErrorAlert
+                          title={
+                            singleVariantError.error.code === "AI_QUOTA"
+                              ? "AI Limit Notice"
+                              : singleVariantError.error.code === "UNAUTHORIZED"
+                              ? "Session Expired"
+                              : singleVariantError.error.code === "TIMEOUT"
+                              ? "Request Timeout"
+                              : `Regeneration Notice (${currentVariant.angle})`
+                          }
+                          message={singleVariantError.error.message}
+                          rawError={
+                            singleVariantError.error.rawError ||
+                            (singleVariantError.error.code ? `Error Code: ${singleVariantError.error.code}` : undefined)
+                          }
+                          onDismiss={() => setSingleVariantError(null)}
+                          onRetry={() => handleRegenerateSingleVariant(currentVariant.angle)}
+                          action={
+                            singleVariantError.error.code === "UNAUTHORIZED" ? (
+                              <Link
+                                href="/login"
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800 transition cursor-pointer"
+                              >
+                                <span>Log in again</span>
+                              </Link>
+                            ) : undefined
+                          }
+                        />
+                      )}
+
                       {/* Action Bar for Current Variant */}
                       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                         <div className="flex items-center gap-2">
@@ -631,9 +886,9 @@ function AIStudioContent() {
                           {/* Regenerate this variant only */}
                           <button
                             onClick={() => handleRegenerateSingleVariant(currentVariant.angle)}
-                            disabled={Boolean(regeneratingAngle)}
+                            disabled={generating || Boolean(regeneratingAngle)}
                             title="Regenerate only this angle with Gemini"
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                           >
                             <RotateCw
                               className={`h-3.5 w-3.5 ${
@@ -647,7 +902,7 @@ function AIStudioContent() {
                           <button
                             onClick={() => handleSaveToProject(false)}
                             disabled={savingScript}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                           >
                             {savingScript ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -884,6 +1139,20 @@ function AIStudioContent() {
               <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
               <span className="text-xs font-medium">Loading your scripts library...</span>
             </div>
+          ) : scriptsError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-10 text-center space-y-3">
+              <AlertCircle className="mx-auto h-8 w-8 text-rose-500" />
+              <h3 className="text-sm font-bold text-rose-950">Unable to Load Library</h3>
+              <p className="text-xs text-rose-800 max-w-sm mx-auto">{scriptsError}</p>
+              <button
+                type="button"
+                onClick={() => handleRetryLoadScripts()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+              >
+                <RotateCw className="h-3.5 w-3.5" />
+                <span>Retry</span>
+              </button>
+            </div>
           ) : filteredScripts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center space-y-3">
               <BookOpen className="mx-auto h-10 w-10 text-slate-400" />
@@ -903,7 +1172,7 @@ function AIStudioContent() {
                   setPlatformFilter("ALL");
                   setTabSelection("generate");
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition cursor-pointer"
               >
                 <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
                 <span>Generate New Script</span>
@@ -948,8 +1217,9 @@ function AIStudioContent() {
                     <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
                       <div className="flex items-center gap-1.5">
                         <button
+                          type="button"
                           onClick={() => handleCopy(s.content || "", `lib-copy-${s._id}`)}
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
+                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer"
                           title="Copy script"
                         >
                           {copiedSection === `lib-copy-${s._id}` ? (
@@ -959,9 +1229,10 @@ function AIStudioContent() {
                           )}
                         </button>
                         <button
-                          onClick={() => s._id && handleDeleteScript(s._id)}
+                          type="button"
+                          onClick={() => s._id && setPendingDeleteId(s._id)}
                           disabled={!s._id || deletingId === s._id}
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50 cursor-pointer"
                           title="Delete script"
                         >
                           {deletingId === s._id ? (
@@ -987,6 +1258,36 @@ function AIStudioContent() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteId)}
+        title="Delete Script"
+        message="Are you sure you want to delete this script from your library? This action cannot be undone."
+        variant="danger"
+        confirmLabel="Delete Script"
+        isLoading={Boolean(deletingId)}
+        onConfirm={async () => {
+          if (!pendingDeleteId) return;
+          setDeletingId(pendingDeleteId);
+          try {
+            const res = await fetch(`/api/scripts/${pendingDeleteId}`, { method: "DELETE" });
+            if (res.ok) {
+              setSavedScripts((prev) => prev.filter((s) => s._id !== pendingDeleteId));
+              toast.success("Script removed from library");
+            } else {
+              toast.error("Failed to delete script");
+            }
+          } catch (e) {
+            console.error("Delete script error:", e);
+            toast.error("Failed to delete script");
+          } finally {
+            setDeletingId(null);
+            setPendingDeleteId(null);
+          }
+        }}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   );
 }
