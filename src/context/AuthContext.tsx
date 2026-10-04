@@ -21,7 +21,7 @@ interface AuthContextType {
     mongoConfigured: boolean;
     geminiConfigured: boolean;
   };
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, redirectTo?: string) => Promise<{ success: boolean; error?: string }>;
   register: (
     name: string,
     email: string,
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, redirectTo = "/dashboard") => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Login failed" };
       }
       setUser(data.user);
-      router.push("/dashboard");
+      router.push(redirectTo);
       return { success: true };
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : "Connection failed" };
@@ -118,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Registration failed" };
       }
       setUser(data.user);
-      // Auto seed sample data for new creators so their dashboard is immediately impressive!
       await fetch("/api/demo/seed", { method: "POST" });
       router.push("/dashboard");
       return { success: true };
