@@ -64,11 +64,49 @@ const guides: Record<string, Guide> = {
     { title: "5. Execute one action", text: "Choose one recommendation and turn it into a project, script, clip, repurpose task or publishing task." },
     { title: "6. Measure the result", text: "After publishing, return to analytics and see whether the action improved the outcome." },
   ], tip: "The best AI workflow is a loop: insight → action → result → new insight." },
+  "assets": { title: "Assets", icon: Layers, intro: "Organise the images, audio, documents and other files needed for your project.", steps: [
+    { title: "1. Open the Assets stage", text: "Choose the project you are working on and open its Assets section." },
+    { title: "2. Add your files", text: "Upload the images, audio, documents, thumbnails or other resources needed for the content." },
+    { title: "3. Check file names", text: "Use clear names so you can quickly understand what each asset is without opening every file." },
+    { title: "4. Connect assets to the project", text: "Keep each asset associated with the correct project so your production context stays together." },
+    { title: "5. Use assets during editing", text: "Move the approved assets into the edit stage and keep unused files available for future versions." },
+  ], tip: "Good asset organisation saves time later. Name files clearly and keep them attached to the right project." },
+  "edit": { title: "Edit", icon: Wand2, intro: "Turn your selected footage and assets into a clean final piece of content.", steps: [
+    { title: "1. Open the Edit stage", text: "Select the project and open the edit workflow after your clips and assets are ready." },
+    { title: "2. Choose the strongest material", text: "Start with the best clips, images and audio instead of trying to use everything." },
+    { title: "3. Build the sequence", text: "Arrange the material in an order that makes the story easy to follow from beginning to end." },
+    { title: "4. Improve the opening", text: "Make the first few seconds clear and useful so viewers immediately understand why they should continue." },
+    { title: "5. Review the final version", text: "Watch the complete edit, check pacing, captions, audio and transitions, then approve the version you want to publish." },
+  ], tip: "Editing is about clarity, not adding effects. Remove anything that does not improve the story." },
+  "publish": { title: "Publish", icon: CheckCircle2, intro: "Prepare approved content for release and keep the publishing step connected to your workflow.", steps: [
+    { title: "1. Confirm the final version", text: "Make sure the content has been reviewed and that the correct title, caption and assets are attached." },
+    { title: "2. Select the platform", text: "Choose where the content will be published and check that the format matches the platform requirements." },
+    { title: "3. Add publishing details", text: "Set the caption, thumbnail, hashtags, call to action and other details required for the selected platform." },
+    { title: "4. Schedule or publish", text: "Choose a suitable date and time, then schedule the content or publish it when everything is ready." },
+    { title: "5. Move to Analytics", text: "After publication, return to Creator Intelligence to measure performance and learn what to improve next time." },
+  ], tip: "Always preview before publishing. A final 30-second check can prevent avoidable mistakes." },
+};
+
+const fallbackGuides: Record<string, Guide> = {
+  "clips": { title: "Clips", icon: Play as typeof Lightbulb, intro: "Review and select useful moments from your footage before editing.", steps: [
+    { title: "1. Open Clips", text: "Start from the footage or Video Intelligence results for your project." },
+    { title: "2. Review suggested moments", text: "Check each suggested moment and read its timestamp or hook." },
+    { title: "3. Trim the boundaries", text: "Make sure every clip starts and ends on a complete, natural thought." },
+    { title: "4. Keep the strongest clips", text: "Select clips that can work independently and have a clear point." },
+    { title: "5. Send clips to Edit", text: "Use your selected clips as the raw material for the editing stage." },
+  ], tip: "A strong clip should make sense even when the viewer has never seen the original video." },
+  "analytics": { title: "Analytics", icon: BarChart3, intro: "Measure content performance and turn the results into your next creative decision.", steps: [
+    { title: "1. Open Analytics", text: "Choose the published content or project you want to evaluate." },
+    { title: "2. Review performance", text: "Check the available views, engagement, retention and other useful metrics." },
+    { title: "3. Compare results", text: "Compare multiple pieces of content to find meaningful patterns." },
+    { title: "4. Identify what worked", text: "Look for patterns in topics, hooks, formats, lengths and platforms." },
+    { title: "5. Turn insight into action", text: "Create one practical experiment based on the strongest learning and measure the result." },
+  ], tip: "Analytics matter when they change what you create next." },
 };
 
 export default async function ManualDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const guide = guides[slug];
+  const guide = guides[slug] ?? fallbackGuides[slug];
   if (!guide) return <main className="min-h-screen bg-[#e8e6e1] p-8"><h1 className="text-3xl font-black">Guide not found</h1><Link href="/manual" className="mt-4 inline-block underline">Back to manual</Link></main>;
   const Icon = guide.icon;
   return (
