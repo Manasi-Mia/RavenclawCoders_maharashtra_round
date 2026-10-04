@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       user.email === "demo@creatorai.local" ||
       req.headers.get("x-demo-mode") === "true";
 
-    const apiKey = process.env.GEMINI_API_KEY || "";
+    const apiKey = process.env.GEMINI_API_KEY;
 
     // MODE 1: Direct Video Asset Analysis via Gemini Files API
     if (assetId) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
           return returnDemoFallback(user._id, projectId, assetId);
         }
         return NextResponse.json(
-          { error: "GEMINI_API_KEY is not configured on the server." },
+          { error: "AI key not configured on the server. Please add GEMINI_API_KEY to your environment variables." },
           { status: 500 }
         );
       }
@@ -232,6 +232,16 @@ Return ONLY valid JSON in this exact shape:
 
     // MODE 2: Transcript Fallback Analysis
     if (transcript && transcript.trim().length > 0) {
+      if (!apiKey) {
+        if (isDemoMode) {
+          return returnDemoFallback(user._id, projectId, assetId);
+        }
+        return NextResponse.json(
+          { error: "AI key not configured on the server. Please add GEMINI_API_KEY to your environment variables." },
+          { status: 500 }
+        );
+      }
+
       try {
         const candidates = await analyzeTranscriptForClips({
           transcript,

@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "";
+function getMongoUri(): string | undefined {
+  return process.env.MONGODB_URI;
+}
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -19,7 +21,8 @@ if (!global.mongooseCache) {
 }
 
 export async function connectToDatabase(): Promise<typeof mongoose | null> {
-  if (!MONGODB_URI) {
+  const uri = getMongoUri();
+  if (!uri) {
     // If no URI is configured, we return null to allow in-memory/mock fallback
     return null;
   }
@@ -35,7 +38,7 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
       serverSelectionTimeoutMS: 5000,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
+    cached.promise = mongoose.connect(uri, opts).then((m) => m);
   }
 
   try {
@@ -49,5 +52,6 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
 }
 
 export function isMongoConfigured(): boolean {
-  return Boolean(MONGODB_URI && MONGODB_URI.length > 5);
+  const uri = getMongoUri();
+  return Boolean(uri && uri.length > 5);
 }
