@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, CheckCircle2, Lightbulb, LockKeyhole, Share2, Sparkles, Video, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, CheckCircle2, Layers, Lightbulb, LockKeyhole, Play, Share2, Sparkles, Video, Wand2 } from "lucide-react";
 
 type Guide = { title: string; icon: typeof Lightbulb; intro: string; steps: { title: string; text: string }[]; tip: string };
 
