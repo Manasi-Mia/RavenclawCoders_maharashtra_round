@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Field and title are required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || "";
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       // Fallback if no API key
       if (field === "hook") {

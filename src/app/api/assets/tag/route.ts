@@ -3,11 +3,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateWithFallback } from "@/lib/gemini-model";
 
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+function getGeminiClient(): GoogleGenerativeAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenerativeAI(apiKey);
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const genAI = getGeminiClient();
     const user = await getCurrentUser(req);
     if (!user || !user._id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

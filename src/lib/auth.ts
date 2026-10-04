@@ -5,9 +5,14 @@ import { NextRequest } from "next/server";
 import { DataService } from "./data-service";
 import { IUser } from "@/models";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "creatorai_super_secure_jwt_secret_key_2026_production"
-);
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is not configured");
+  }
+  return new TextEncoder().encode(secret);
+}
+
 const COOKIE_NAME = "creatorai_token";
 
 export interface TokenPayload {
@@ -40,12 +45,12 @@ export async function signToken(payload: TokenPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     return payload as unknown as TokenPayload;
   } catch {
     return null;

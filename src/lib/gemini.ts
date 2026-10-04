@@ -1,12 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateWithFallback } from "@/lib/gemini-model";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+function getGeminiApiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY;
+}
 
 function getGeminiClient(): GoogleGenerativeAI | null {
-  if (!GEMINI_API_KEY) return null;
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) return null;
   try {
-    return new GoogleGenerativeAI(GEMINI_API_KEY);
+    return new GoogleGenerativeAI(apiKey);
   } catch (err) {
     console.error("Failed to initialize GoogleGenerativeAI:", err);
     return null;
@@ -14,7 +17,8 @@ function getGeminiClient(): GoogleGenerativeAI | null {
 }
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(GEMINI_API_KEY && GEMINI_API_KEY.length > 5);
+  const apiKey = getGeminiApiKey();
+  return Boolean(apiKey && apiKey.length > 5);
 }
 
 // 1. GENERATE IDEAS
