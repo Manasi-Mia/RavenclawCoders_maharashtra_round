@@ -18,12 +18,12 @@ import {
   Check,
   AlertCircle,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { IAsset, IProject } from "@/models";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { uploadInChunks } from "@/lib/upload-client";
 
 interface UploadingFile {
   id: string;
@@ -34,7 +34,6 @@ interface UploadingFile {
   abortController?: AbortController;
 }
 
-const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -168,59 +167,7 @@ export default function AssetManagementPage() {
     );
 
     try {
-      // Step 1: Init upload
-      const initRes = await fetch("/api/assets/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "init",
-          filename: file.name,
-          mimeType: file.type || "application/octet-stream",
-          size: file.size,
-        }),
-        signal: controller.signal,
-      });
-
-      const initData = await initRes.json();
-      if (!initRes.ok || !initData.uploadId) {
-        throw new Error(initData.error || "Initialization failed");
-      }
-
-      const uploadId = initData.uploadId;
-      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-
-      // Step 2: Upload chunks
-      for (let i = 0; i < totalChunks; i++) {
-        if (controller.signal.aborted) throw new Error("Upload cancelled");
-
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const chunkBlob = file.slice(start, end);
-
-        const formData = new FormData();
-        formData.append("action", "chunk");
-        formData.append("uploadId", uploadId);
-        formData.append("index", String(i));
-        formData.append("chunk", chunkBlob, `chunk-${i}`);
-
-        const chunkRes = await fetch("/api/assets/upload", {
-          method: "POST",
-          body: formData,
-          signal: controller.signal,
-        });
-
-        if (!chunkRes.ok) {
-          const errData = await chunkRes.json();
-          throw new Error(errData.error || `Chunk ${i + 1}/${totalChunks} failed`);
-        }
-
-        const pct = Math.round(((i + 1) / totalChunks) * 85);
-        setUploadQueue((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, progress: pct } : item))
-        );
-      }
-
-      // Step 3: Generate thumbnail & get AI tags
+      // Step 1: Generate thumbnail & get AI tags
       let thumbnail = "";
       let durationSeconds = 0;
       let imageData = "";
@@ -263,36 +210,29 @@ export default function AssetManagementPage() {
         // non-blocking
       }
 
-      // Step 4: Complete upload
-      const completeRes = await fetch("/api/assets/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
-          uploadId,
-          filename: file.name,
-          mimeType: file.type || "application/octet-stream",
-          size: file.size,
-          projectId: uploadTargetProject || undefined,
-          thumbnail,
-          description,
-          tags,
-          durationSeconds: durationSeconds || undefined,
-        }),
+      // Step 2: Upload in chunks via shared client
+      const createdAsset = await uploadInChunks(file, {
+        filename: file.name,
+        mimeType: file.type,
+        projectId: uploadTargetProject || undefined,
+        thumbnail,
+        description,
+        tags,
+        durationSeconds: durationSeconds || undefined,
         signal: controller.signal,
+        onProgress: (pct) => {
+          setUploadQueue((prev) =>
+            prev.map((item) => (item.id === id ? { ...item, progress: pct } : item))
+          );
+        },
       });
-
-      const completeData = await completeRes.json();
-      if (!completeRes.ok || !completeData.asset) {
-        throw new Error(completeData.error || "Failed to finalize asset creation");
-      }
 
       setUploadQueue((prev) =>
         prev.map((item) => (item.id === id ? { ...item, progress: 100, status: "complete" } : item))
       );
 
       // Add to assets list
-      setAssets((prev) => [completeData.asset, ...prev]);
+      setAssets((prev) => [createdAsset, ...prev]);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Upload failed";
       setUploadQueue((prev) =>
