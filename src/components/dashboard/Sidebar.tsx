@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Lightbulb, FileText, FolderKanban, Wand2, Share2, BarChart3, Calendar, Settings, Sparkles, Video, LogOut, FolderOpen, Scissors } from "lucide-react";
+import { LayoutDashboard, Lightbulb, FolderKanban, Wand2, Share2, BarChart3, Calendar, Settings, Sparkles, Video, LogOut, FolderOpen, Scissors, Activity } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const sections = [
   { label: "Workspace", items: [
-    { name: "Home", href: "/dashboard", icon: LayoutDashboard }, { name: "Ideas", href: "/dashboard/ideas", icon: Lightbulb }, { name: "Projects", href: "/dashboard/projects", icon: FolderOpen }, { name: "AI Studio", href: "/dashboard/ai-studio", icon: Wand2 }, { name: "Video Studio", href: "/dashboard/studio", icon: Scissors }, { name: "Video Intelligence", href: "/dashboard/video-intelligence", icon: Video }, { name: "Repurpose", href: "/dashboard/repurpose", icon: Share2 }, { name: "Workflow", href: "/dashboard/workflow", icon: FolderKanban }, { name: "Assets", href: "/dashboard/assets", icon: FolderOpen },
+    { name: "Home", href: "/dashboard", icon: LayoutDashboard }, { name: "Ideas", href: "/dashboard/ideas", icon: Lightbulb }, { name: "Projects", href: "/dashboard/projects", icon: FolderOpen }, { name: "AI Studio", href: "/dashboard/ai-studio", icon: Wand2 }, { name: "Video Studio", href: "/dashboard/studio", icon: Scissors }, { name: "Video Intelligence", href: "/dashboard/video-intelligence", icon: Video }, { name: "Content Health", href: "/dashboard/content-health", icon: Activity }, { name: "Repurpose", href: "/dashboard/repurpose", icon: Share2 }, { name: "Workflow", href: "/dashboard/workflow", icon: FolderKanban }, { name: "Assets", href: "/dashboard/assets", icon: FolderOpen },
   ]},
   { label: "Growth", items: [ { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }, { name: "Calendar", href: "/dashboard/calendar", icon: Calendar }, { name: "Settings", href: "/dashboard/settings", icon: Settings } ] },
 ];
