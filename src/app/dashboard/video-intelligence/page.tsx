@@ -9,12 +9,12 @@ import {
   Loader2,
   Scissors,
   ArrowRight,
-  AlertCircle,
   Film,
   Info,
 } from "lucide-react";
 import { IProject, IScript, IClip, IAsset } from "@/models";
 import { ClipCard } from "@/components/dashboard/ClipCard";
+import { AIErrorAlert } from "@/components/ui/AIErrorAlert";
 import Link from "next/link";
 
 export default function VideoIntelligencePage() {
@@ -39,7 +39,7 @@ export default function VideoIntelligencePage() {
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState("");
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<{ message: string; rawError?: string } | null>(null);
   const [isSampleData, setIsSampleData] = useState(false);
 
   const [clipCandidates, setClipCandidates] = useState<Partial<IClip>[]>([]);
@@ -77,7 +77,7 @@ export default function VideoIntelligencePage() {
 
   const handleAnalyzeVideo = async () => {
     if (!selectedAssetId && mode === "video") {
-      setAnalysisError("Please select an uploaded video asset first.");
+      setAnalysisError({ message: "Please select an uploaded video asset first." });
       return;
     }
 
@@ -180,7 +180,10 @@ export default function VideoIntelligencePage() {
     } catch (err: unknown) {
       console.error("Analysis Error:", err);
       const msg = err instanceof Error ? err.message : "An unexpected error occurred during clip analysis.";
-      setAnalysisError(msg);
+      setAnalysisError({
+        message: "The AI model is unavailable right now, please try again",
+        rawError: msg,
+      });
     } finally {
       setAnalyzing(false);
       setAnalysisStep("");
@@ -449,15 +452,11 @@ export default function VideoIntelligencePage() {
 
           {/* Error Banner */}
           {analysisError && (
-            <div className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-5 text-rose-900 shadow-sm">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
-                <div>
-                  <h4 className="text-xs font-bold">Analysis Failed</h4>
-                  <p className="mt-0.5 text-xs text-rose-800">{analysisError}</p>
-                </div>
-              </div>
-            </div>
+            <AIErrorAlert
+              message={analysisError.message}
+              rawError={analysisError.rawError}
+              onDismiss={() => setAnalysisError(null)}
+            />
           )}
 
           {/* Sample Data Badge (Demo Mode) */}
