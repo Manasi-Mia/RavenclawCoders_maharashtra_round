@@ -22,15 +22,15 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 
 const workflow = [
-  { label: "IDEA", icon: Lightbulb },
-  { label: "SCRIPT", icon: FileText },
-  { label: "ASSETS", icon: Layers },
-  { label: "FOOTAGE", icon: Video },
-  { label: "CLIPS", icon: Play },
-  { label: "EDIT", icon: Wand2 },
-  { label: "REPURPOSE", icon: Share2 },
-  { label: "PUBLISH", icon: CheckCircle2 },
-  { label: "ANALYTICS", icon: BarChart3 },
+  { label: "IDEA", slug: "idea-to-action", icon: Lightbulb },
+  { label: "SCRIPT", slug: "script-studio", icon: FileText },
+  { label: "ASSETS", slug: "assets", icon: Layers },
+  { label: "FOOTAGE", slug: "video-intelligence", icon: Video },
+  { label: "CLIPS", slug: "video-intelligence", icon: Play },
+  { label: "EDIT", slug: "edit", icon: Wand2 },
+  { label: "REPURPOSE", slug: "repurpose", icon: Share2 },
+  { label: "PUBLISH", slug: "publish", icon: CheckCircle2 },
+  { label: "ANALYTICS", slug: "creator-intelligence", icon: BarChart3 },
 ];
 
 const features = [
@@ -73,7 +73,22 @@ export default function LandingPage() {
         </section>
 
         <section id="workflow" className="border-y border-black/10 bg-[#dedcd7] py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8"><div className="mx-auto max-w-2xl text-center"><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#77797c]">One continuous workflow</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">From first thought to final insight.</h2><p className="mt-4 text-sm leading-6 text-[#66686c]">Every stage stays connected, so your context travels with the content.</p></div><div className="mt-12 rounded-[32px] border border-white/70 bg-white/45 p-3 shadow-[0_25px_70px_rgba(0,0,0,0.10)] backdrop-blur-2xl"><div className="flex flex-wrap items-center justify-center gap-2 rounded-[25px] bg-[#17181a] p-3 sm:gap-3">{workflow.map((step,i)=>{const Icon=step.icon;return <div key={step.label} className={`group flex min-w-[86px] flex-col items-center gap-2 rounded-[20px] px-3 py-3 transition ${i===0?"bg-white text-black shadow-lg":"text-white/55 hover:bg-white/10 hover:text-white"}`}><Icon className="h-4 w-4" /><span className="text-[9px] font-bold tracking-[0.12em]">{step.label}</span></div>})}</div><div className="grid gap-3 p-3 sm:grid-cols-[1.4fr_0.6fr]"><div className="rounded-[24px] bg-[#111214] p-5 text-white"><div className="flex items-center justify-between"><div><p className="text-[9px] uppercase tracking-[0.2em] text-white/35">Active project</p><h3 className="mt-1 text-base font-semibold">How I Built My First AI App in 48 Hours</h3></div><span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] text-white/50">RECORDING</span></div><p className="mt-4 rounded-2xl bg-white/[0.05] p-4 text-xs leading-6 text-white/70">“90% of developers spend months building an MVP nobody wants. I launched one in 48 hours.”</p><div className="mt-4 flex flex-wrap gap-4 text-[9px] text-white/35"><span>2m 23s</span><span>310 words</span><span>4 clip boundaries</span></div></div><div className="rounded-[24px] border border-black/10 bg-white/60 p-5"><div className="flex items-center gap-2 text-xs font-bold"><Sparkles className="h-4 w-4" />AI next step</div><p className="mt-3 text-sm leading-6 text-[#55575b]">Turn Section 2 into platform-native short-form versions.</p><Link href="/register" className="mt-5 inline-flex rounded-full bg-black px-4 py-2 text-[10px] font-bold text-white">Generate versions</Link></div></div></div></div>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center"><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#77797c]">One continuous workflow</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">From first thought to final insight.</h2><p className="mt-4 text-sm leading-6 text-[#66686c]">Every stage stays connected, so your context travels with the content.</p></div>
+            <div className="mt-12 rounded-[32px] border border-white/70 bg-white/45 p-3 shadow-[0_25px_70px_rgba(0,0,0,0.10)] backdrop-blur-2xl">
+              <div className="overflow-x-auto rounded-[25px] bg-[#17181a] p-3 sm:overflow-visible">
+                <div className="flex min-w-max snap-x gap-2 sm:min-w-0 sm:flex-wrap sm:justify-center sm:gap-3">
+                  {workflow.map((step, i) => { const Icon = step.icon; return (
+                    <Link key={step.label} href={`/manual/${step.slug}`} aria-label={`Open ${step.label} beginner guide`} className={`group flex min-w-[88px] shrink-0 snap-start flex-col items-center gap-2 rounded-[20px] px-3 py-3 transition duration-200 focus:outline-none focus:ring-2 focus:ring-white/60 ${i === 0 ? "bg-white text-black shadow-lg" : "text-white/55 hover:bg-white/10 hover:text-white"}`}>
+                      <Icon className="h-4 w-4" />
+                      <span className="text-[9px] font-bold tracking-[0.12em]">{step.label}</span>
+                    </Link>
+                  ); })}
+                </div>
+              </div>
+              <div className="grid gap-3 p-3 sm:grid-cols-[1.4fr_0.6fr]"><div className="rounded-[24px] bg-[#111214] p-5 text-white"><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] uppercase tracking-[0.2em] text-white/35">Active project</p><h3 className="mt-1 text-base font-semibold">How I Built My First AI App in 48 Hours</h3></div><span className="shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-[9px] text-white/50">RECORDING</span></div><p className="mt-4 rounded-2xl bg-white/[0.05] p-4 text-xs leading-6 text-white/70">“90% of developers spend months building an MVP nobody wants. I launched one in 48 hours.”</p><div className="mt-4 flex flex-wrap gap-4 text-[9px] text-white/35"><span>2m 23s</span><span>310 words</span><span>4 clip boundaries</span></div></div><div className="rounded-[24px] border border-black/10 bg-white/60 p-5"><div className="flex items-center gap-2 text-xs font-bold"><Sparkles className="h-4 w-4" />AI next step</div><p className="mt-3 text-sm leading-6 text-[#55575b]">Turn Section 2 into platform-native short-form versions.</p><Link href="/manual/ai-next-step" className="mt-5 inline-flex rounded-full bg-black px-4 py-2 text-[10px] font-bold text-white transition hover:-translate-y-0.5">Generate versions</Link></div></div>
+            </div>
+          </div>
         </section>
 
         <section id="features" className="bg-[#efede8] py-24">
